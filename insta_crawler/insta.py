@@ -1,5 +1,5 @@
 from collections import OrderedDict
-from typing import Dict, Optional
+from typing import Dict, Union
 
 import requests
 from fake_useragent import UserAgent
@@ -75,7 +75,7 @@ class InstaCrawler:
 
         return user_info
 
-    def get_single_post(self, url: str) -> Dict[str, Optional[str, list]]:
+    def get_single_post(self, url: str) -> Dict[str, Union[str, list]]:
         params = {"__a": 1}
 
         post_data = self._make_request(url, params)[
@@ -103,7 +103,7 @@ class InstaCrawler:
 
         return post_info
 
-    def get_reels(self, url: str) -> OrderedDict[str, Dict]:
+    def get_reels(self, url: str) -> OrderedDict:
         query_url = f"{self.BASE_URL}{self.GRAPHQL_QUERY}"
 
         params = {
@@ -131,7 +131,7 @@ class InstaCrawler:
 
         return reels
 
-    def get_posts(self, url: str) -> OrderedDict[str, Dict]:
+    def get_posts(self, url: str) -> OrderedDict:
         query_url = f"{self.BASE_URL}{self.GRAPHQL_QUERY}"
         posts = OrderedDict()
         after = ""
@@ -181,7 +181,7 @@ class InstaCrawler:
 
         return posts
 
-    def get_all_igtv(self, url: str) -> OrderedDict[str, Dict]:
+    def get_all_igtv(self, url: str) -> OrderedDict:
         query_url = f"{self.BASE_URL}{self.GRAPHQL_QUERY}"
         igtvs = OrderedDict()
         after = ""
@@ -216,7 +216,7 @@ class InstaCrawler:
 
     def get_stories(self,
                     url: str = "",
-                    reel_id: str = "") -> OrderedDict[str, Dict]:
+                    reel_id: str = "") -> OrderedDict:
         query_url = f"{self.STORIES_URL}{self.STORIES_QUERY}"
 
         params = {
