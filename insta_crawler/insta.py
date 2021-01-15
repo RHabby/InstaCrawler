@@ -1,4 +1,5 @@
 from collections import OrderedDict
+from datetime import datetime as dt
 from typing import Dict, Union
 
 import requests
@@ -19,7 +20,7 @@ class InstaCrawler:
     cookie: str
 
     def __init__(self, cookie):
-        self.cookie = cookie
+        self.cookie = cookie or {}
         self.all_posts_query_hash = "003056d32c2554def87228bc3fd9668a"
         self.user_reels_query_hash = "d4d88dc1500312af6f937f7b804c68c3"
         self.user_igtvs_query_hash = "bc78b344a68ed16dd5d7f264681c4c76"
@@ -41,7 +42,7 @@ class InstaCrawler:
 
     def get_user_info(self, url: str) -> Dict[str, str]:
         params = {"__a": 1}
-
+        # TODO: добавить проверку фолловится ли запрашиваемый юзером
         user_data = self._make_request(url, params)["graphql"]
 
         user_data = user_data.get("user") or user_data.get(
@@ -76,7 +77,7 @@ class InstaCrawler:
         return user_info
 
     def get_single_post(self, url: str) -> Dict[str, Union[str, list]]:
-        params = {"__a": 1}
+        params = {"__a": "1"}
 
         post_data = self._make_request(url, params)[
             "graphql"]["shortcode_media"]
@@ -97,8 +98,14 @@ class InstaCrawler:
         post_info = {
             "description": post_data["edge_media_to_caption"]["edges"][0]["node"]["text"],
             "likes": post_data["edge_media_preview_like"]["count"],
+            "comments": post_data["edge_media_preview_comment"]["count"],
             "owner": f"{self.BASE_URL}{post_data['owner']['username']}",
+            "owner_username": post_data['owner']['username'],
             "post_content": post_content,
+            "post_link": url,
+            "posted_at": dt.utcfromtimestamp(
+                post_data["taken_at_timestamp"]).strftime("%H:%M %d-%m-%Y"),
+            "shortcode": post_data["shortcode"]
         }
 
         return post_info
@@ -150,8 +157,8 @@ class InstaCrawler:
 
             for post in posts_data["edges"]:
                 post = post["node"]
-                title = \
-                    post["edge_media_to_caption"]["edges"][0]["node"]["text"] if post["edge_media_to_caption"]["edges"] else ""
+                title = post["edge_media_to_caption"]["edges"][0][
+                    "node"]["text"] if post["edge_media_to_caption"]["edges"] else ""
                 post_link = f'{self.BASE_URL}p/{post["shortcode"]}/'
 
                 if post.get("edge_sidecar_to_children"):
@@ -266,7 +273,9 @@ class InstaCrawler:
 
         cookie_dict = {}
         for cookie in self.cookie.split(";"):
-            cookie_dict[cookie.split("=")[0]] = cookie.split("=")[1]
+            if cookie != "":
+                cookie_dict[
+                    cookie.split("=")[0].strip()] = cookie.split("=")[1].strip()
 
         return cookie_dict
 
