@@ -1,6 +1,7 @@
 from collections import OrderedDict
 from datetime import datetime as dt
 from typing import Dict, Union
+from pprint import pprint
 
 import requests
 from fake_useragent import UserAgent
@@ -90,7 +91,7 @@ class InstaCrawler:
                 for elem in post_data["edge_sidecar_to_children"]["edges"]
             ]
         elif post_data.get("product_type") == "igtv":
-            post_content = post_data.get("video_url")
+            post_content = [post_data.get("video_url")]
         else:
             post_content = [post_data.get(
                 "video_url") or post_data.get("display_url")]
@@ -195,7 +196,7 @@ class InstaCrawler:
 
         while True:
             params = {
-                "query_hash": self.user_reels_query_hash,
+                "query_hash": self.user_igtvs_query_hash,
                 "id": self.get_user_info(url)["id"],
                 "first": "50",
                 "after": after if after else "",
