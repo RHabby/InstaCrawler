@@ -4,7 +4,7 @@ from time import sleep
 import click
 from prettytable import PrettyTable, ALL
 from insta import InstaCrawler
-from utils import download_file
+from utils import download_file, download_all
 
 
 @click.group()
@@ -108,36 +108,52 @@ def single_post(cookie: str, url: str):
     click.echo("\nDone")
 
 
-@ cli.command()
-def posts():
+@cli.command()
+@click.option("-C", "--cookie",
+              help="You can paste your cookie")
+@click.option("-u", "--username",
+              required=True, help="Username Required")
+@click.option("-ct", "--content-type",
+              type=click.Choice(
+                  ["posts", "stories", "highlights", "igtv", "all"],
+                  case_sensitive=False))
+def ctgry(cookie: str, username: str, content_type: str):
     """
     all posts func help message
     """
-    click.echo("posts")
 
+    USER_URL = f"https://www.instagram.com/{username}"
+    insta = InstaCrawler(cookie=cookie)
 
-@ cli.command()
-def stories():
-    """
-    all available stories func help message
-    """
-    click.echo("stories")
+    data = {}
+    if content_type == "posts":
+        data[content_type] = insta.get_posts(url=USER_URL)
+    if content_type == "stories":
+        data[content_type] = insta.get_stories(url=USER_URL)
+    if content_type == "reels":
+        data[content_type] = insta.get_reels(url=USER_URL)
+    if content_type == "igtv":
+        data[content_type] = insta.get_all_igtv(url=USER_URL)
+    if content_type == "all":
+        data = {
+            "posts": insta.get_posts(url=USER_URL),
+            "stories": insta.get_stories(url=USER_URL),
+            "highlights": insta.get_reels(url=USER_URL),
+            "igtv": insta.get_all_igtv(url=USER_URL)
+        }
 
+    click.echo("Данные страницы получены.")
 
-@ cli.command()
-def reels():
-    """
-    all reels func help message
-    """
-    click.echo("reels")
+    for ct, value in data.items():
+        if value:
+            click.echo(f'Начинаю скачивать категорию {ct}...')
+            download_all(posts=value,
+                         content_type=ct,
+                         username=username)
+        else:
+            continue
 
-
-@ cli.command()
-def igtvs():
-    """
-    all igtvs func help message
-    """
-    click.echo("igtvs")
+    click.echo("\nГотово!")
 
 
 if __name__ == "__main__":
