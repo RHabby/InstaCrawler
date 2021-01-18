@@ -111,9 +111,9 @@ class InstaCrawler:
 
         return post_info
 
+    # Done
     def get_reels(self, url: str) -> OrderedDict:
         query_url = f"{self.BASE_URL}{self.GRAPHQL_QUERY}"
-
         params = {
             "query_hash": self.user_reels_query_hash,
             "user_id": self.get_user_info(url)["id"],
@@ -126,19 +126,38 @@ class InstaCrawler:
         }
 
         reels_data = self._make_request(query_url, params=params)[
-            "data"]["user"]["edge_highlight_reels"]["edges"]
+            "data"]["user"]
 
         reels = OrderedDict()
-        for reel in reels_data:
-            reels[reel["node"]["title"]] = {
+        for reel in reels_data["edge_highlight_reels"]["edges"]:
+            reel_content = self.get_stories(
+                reel_id=f'highlight:{reel["node"]["id"]}'
+            )
+
+            username = reels_data["reel"]["owner"]["username"]
+
+            post_content = [
+                post["post_content"][0]
+                for post in reel_content.values()
+            ]
+
+            reels[reel["node"]["id"]] = {
+                "comments": None,
+                "description": None,
+                "likes": None,
+                "owner": f'{self.BASE_URL}{username}',
+                "owner_username": username,
                 "id": reel["node"]["id"],
+                "post_content": post_content,
+                "post_content_len": len(post_content),
+                "post_link": f'{self.BASE_URL}stories/highlights/{reel["node"]["id"]}',
+                "posted_at": None,
                 "title": reel["node"]["title"],
-                "post_content": self.get_stories(
-                    reel_id=f'highlight:{reel["node"]["id"]}'),
             }
 
         return reels
 
+    # Done
     def get_posts(self, url: str) -> OrderedDict:
         query_url = f"{self.BASE_URL}{self.GRAPHQL_QUERY}"
         posts = OrderedDict()
@@ -158,29 +177,31 @@ class InstaCrawler:
 
             for post in posts_data["edges"]:
                 post = post["node"]
-                title = post["edge_media_to_caption"]["edges"][0][
-                    "node"]["text"] if post["edge_media_to_caption"]["edges"] else ""
-                post_link = f'{self.BASE_URL}p/{post["shortcode"]}/'
+                description = post["edge_media_to_caption"]["edges"][0][
+                    "node"]["text"] if post["edge_media_to_caption"]["edges"] else None
+
+                posts[post["shortcode"]] = {
+                    "comments": post["edge_media_to_comment"]["count"],
+                    "description": description,
+                    "likes": post["edge_media_preview_like"]["count"],
+                    "owner_link": f'{self.BASE_URL}{post["owner"]["username"]}',
+                    "owner_username": post["owner"]["username"],
+                    "post_link": f'{self.BASE_URL}p/{post["shortcode"]}/',
+                    "posted_at": post["taken_at_timestamp"],
+                    "title": None,
+                    "shortcode": post["shortcode"],
+                }
 
                 if post.get("edge_sidecar_to_children"):
                     post_links = post["edge_sidecar_to_children"]["edges"]
-                    posts[post["shortcode"]] = {
-                        "title": title,
-                        "post_content": [
-                            (post["node"]
-                                .get("video_url") or post["node"]
-                                .get("display_url")) for post in post_links
-                        ],
-                        "post_link": post_link,
-                    }
+
+                    posts[post["shortcode"]]["post_content"] = [
+                        (post["node"].get("video_url") or post["node"].get("display_url")) for post in post_links
+                    ]
                 else:
-                    posts[post["shortcode"]] = {
-                        "title": title,
-                        "post_content": [
-                            (post.get("video_url") or post.get("display_url"))
-                        ],
-                        "post_link": post_link,
-                    }
+                    posts[post["shortcode"]]["post_content"] = [
+                        (post.get("video_url") or post.get("display_url"))
+                    ]
 
             if posts_data["page_info"]["has_next_page"]:
                 after = posts_data["page_info"]["end_cursor"]
@@ -208,11 +229,22 @@ class InstaCrawler:
 
             for igtv in igtv_data["edges"]:
                 igtv = igtv["node"]
+
+                post_link = f'{self.BASE_URL}tv/{igtv["shortcode"]}'
+                post_info = self.get_single_post(url=post_link)
+
                 igtvs[igtv["shortcode"]] = {
+                    "comments": post_info["comments"],
+                    "description": igtv["edge_media_to_caption"]["edges"][0]["node"]["text"],
+                    "likes": igtv["edge_liked_by"]["count"],
+                    "owner": post_info["owner"],
+                    "owner_username": post_info["owner_username"],
+                    "post_content": post_info["post_content"],
+                    "post_content_len": 1,
+                    "post_link": post_link,
+                    "posted_at": igtv["edge_liked_by"]["count"],
                     "title": igtv["title"],
-                    "post_content": self.get_single_post(
-                        url=f'{self.BASE_URL}tv/{igtv["shortcode"]}'
-                    ),
+                    "shortcode": igtv["shortcode"],
                 }
 
             if igtv_data["page_info"]["has_next_page"]:
@@ -222,6 +254,7 @@ class InstaCrawler:
 
         return igtvs
 
+    # Done
     def get_stories(self,
                     url: str = "",
                     reel_id: str = "") -> OrderedDict:
@@ -245,26 +278,38 @@ class InstaCrawler:
             "user-agent": UserAgent().chrome,
         }
 
+        stories = OrderedDict()
         stories_data = self._make_request(
             query_url, params=params, headers=headers)["reels_media"]
 
         if stories_data:
-            stories_data = stories_data[0]["items"]
+            stories_data = stories_data[0]
         else:
-            return "there is nothinng to watch."  # TODO: custom exception??
+            return stories
 
-        stories = OrderedDict()
-        for storie in stories_data:
+        for storie in stories_data["items"]:
+            username = stories_data["user"]["username"]
+
+            stories[storie["id"]] = {
+                "comments": None,
+                "description": None,
+                "likes": None,
+                "owner": f'{self.BASE_URL}{username}',
+                "owner_username": username,
+                "post_link": f'{self.BASE_URL}stories/{username}/{storie["id"]}',
+                "posted_at": storie["taken_at"],
+                "title": None,  # TODO: у хайлайтов должен быт тайтл, добавить
+                "shortcode": storie["id"],
+            }
+
             if storie["media_type"] == 1:
-                stories[storie["id"]] = {
-                    "post_content": [
-                        storie["image_versions2"]["candidates"][0]["url"]
-                    ]
-                }
+                stories[storie["id"]]["post_content"] = [
+                    storie["image_versions2"]["candidates"][0]["url"]
+                ]
             else:
-                stories[storie["id"]] = {
-                    "post_content": [storie["video_versions"][0]["url"]]
-                }
+                stories[storie["id"]]["post_content"] = [
+                    storie["video_versions"][0]["url"]
+                ]
 
         return stories
 
