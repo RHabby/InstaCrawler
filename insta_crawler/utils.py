@@ -33,10 +33,7 @@ def download_all(posts: OrderedDict[str, Dict],
                  content_type: str, username: str) -> None:
     undone = []
     for addr, post in posts.items():
-        if content_type == "igtvs":
-            links = [post["post_content"]["post_content"]]
-        else:
-            links = post["post_content"]
+        links = post["post_content"]
 
         for index, link in enumerate(links):
             name = fr"{username}_{content_type}_{addr.replace('/', '_')}_0{index+1}{'.mp4' if 'mp4' in link else '.png'}"
