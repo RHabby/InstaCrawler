@@ -111,7 +111,6 @@ class InstaCrawler:
 
         return post_info
 
-    # Done
     def get_reels(self, url: str) -> OrderedDict:
         query_url = f"{self.BASE_URL}{self.GRAPHQL_QUERY}"
         params = {
@@ -157,7 +156,6 @@ class InstaCrawler:
 
         return reels
 
-    # Done
     def get_posts(self, url: str) -> OrderedDict:
         query_url = f"{self.BASE_URL}{self.GRAPHQL_QUERY}"
         posts = OrderedDict()
@@ -254,7 +252,6 @@ class InstaCrawler:
 
         return igtvs
 
-    # Done
     def get_stories(self,
                     url: str = "",
                     reel_id: str = "") -> OrderedDict:
