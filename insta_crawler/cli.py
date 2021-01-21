@@ -7,9 +7,8 @@ from time import sleep
 import click
 
 from insta import InstaCrawler
-from utils import (download_all, download_file,
-                   export_as_json, print_user_info_table,
-                   print_single_post_info_table)
+from utils import (download_all, download_file, export_as_csv, export_as_json,
+                   print_single_post_info_table, print_user_info_table)
 
 
 @click.group()
@@ -117,7 +116,15 @@ def category(cookie: str, username: str, content_type: str):
 
     click.echo("Данные страницы получены.")
     if click.confirm("Сохранить данные в JSON?"):
-        export_as_json(data=data, username=username)
+        export_as_json(data=data, username=username, content_type="content")
+
+    if click.confirm("csv"):
+        headers_row = ["comments", "description", "likes",
+                       "owner_link", "owner_username", "post_link",
+                       "posted_at", "title", "shortcode", "post_content",
+                       "post_content_len", "content_type"]
+        export_as_csv(data=data, headers_row=headers_row,
+                      username=username, content_type="content")
 
     if click.confirm("Загрузить содержимое?", abort=True):
         for ct, value in data.items():

@@ -115,9 +115,10 @@ class InstaCrawler:
             "description": post_data["edge_media_to_caption"]["edges"][0]["node"]["text"],
             "likes": post_data["edge_media_preview_like"]["count"],
             "comments": post_data["edge_media_preview_comment"]["count"],
-            "owner": f"{self.BASE_URL}{post_data['owner']['username']}",
+            "owner_link": f"{self.BASE_URL}{post_data['owner']['username']}",
             "owner_username": post_data['owner']['username'],
             "post_content": post_content,
+            "post_content_len": len(post_content),
             "post_link": url,
             "posted_at": dt.utcfromtimestamp(
                 post_data["taken_at_timestamp"]).strftime("%H:%M %d-%m-%Y"),
@@ -159,7 +160,7 @@ class InstaCrawler:
                 "comments": None,
                 "description": None,
                 "likes": None,
-                "owner": f'{self.BASE_URL}{username}',
+                "owner_link": f'{self.BASE_URL}{username}',
                 "owner_username": username,
                 "id": reel["node"]["id"],
                 "post_content": post_content,
@@ -167,6 +168,7 @@ class InstaCrawler:
                 "post_link": f'{self.BASE_URL}stories/highlights/{reel["node"]["id"]}',
                 "posted_at": None,
                 "title": reel["node"]["title"],
+                "shortcode": None,
             }
 
         return reels
@@ -193,28 +195,30 @@ class InstaCrawler:
                 description = post["edge_media_to_caption"]["edges"][0][
                     "node"]["text"] if post["edge_media_to_caption"]["edges"] else None
 
+                if post.get("edge_sidecar_to_children"):
+                    post_links = post["edge_sidecar_to_children"]["edges"]
+
+                    post_content = [
+                        (post["node"].get("video_url") or post["node"].get("display_url")) for post in post_links
+                    ]
+                else:
+                    post_content = [
+                        (post.get("video_url") or post.get("display_url"))
+                    ]
+
                 posts[post["shortcode"]] = {
                     "comments": post["edge_media_to_comment"]["count"],
                     "description": description,
                     "likes": post["edge_media_preview_like"]["count"],
                     "owner_link": f'{self.BASE_URL}{post["owner"]["username"]}',
                     "owner_username": post["owner"]["username"],
+                    "post_content": post_content,
+                    "post_content_len": len(post_content),
                     "post_link": f'{self.BASE_URL}p/{post["shortcode"]}/',
                     "posted_at": post["taken_at_timestamp"],
                     "title": None,
                     "shortcode": post["shortcode"],
                 }
-
-                if post.get("edge_sidecar_to_children"):
-                    post_links = post["edge_sidecar_to_children"]["edges"]
-
-                    posts[post["shortcode"]]["post_content"] = [
-                        (post["node"].get("video_url") or post["node"].get("display_url")) for post in post_links
-                    ]
-                else:
-                    posts[post["shortcode"]]["post_content"] = [
-                        (post.get("video_url") or post.get("display_url"))
-                    ]
 
             if posts_data["page_info"]["has_next_page"]:
                 after = posts_data["page_info"]["end_cursor"]
@@ -250,7 +254,7 @@ class InstaCrawler:
                     "comments": post_info["comments"],
                     "description": igtv["edge_media_to_caption"]["edges"][0]["node"]["text"],
                     "likes": igtv["edge_liked_by"]["count"],
-                    "owner": post_info["owner"],
+                    "owner_link": post_info["owner"],
                     "owner_username": post_info["owner_username"],
                     "post_content": post_info["post_content"],
                     "post_content_len": 1,
@@ -306,8 +310,9 @@ class InstaCrawler:
                 "comments": None,
                 "description": None,
                 "likes": None,
-                "owner": f'{self.BASE_URL}{username}',
+                "owner_link": f'{self.BASE_URL}{username}',
                 "owner_username": username,
+                "post_content_len": 1,
                 "post_link": f'{self.BASE_URL}stories/{username}/{storie["id"]}',
                 "posted_at": storie["taken_at"],
                 "title": None,  # TODO: у хайлайтов должен быт тайтл, добавить

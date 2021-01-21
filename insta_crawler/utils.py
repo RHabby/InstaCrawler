@@ -1,15 +1,16 @@
+import csv
 import json
 import os
 from pprint import pprint
-from typing import Dict, OrderedDict
+from typing import Dict, List, OrderedDict
 
 import requests
 from prettytable import PrettyTable
 
 
-def export_as_json(data: Dict, username: str):
+def export_as_json(data: Dict, username: str, content_type: str):
     file_dir = os.path.join(os.getcwd(), "downloads", username)
-    path_to_file = os.path.join(file_dir, f"{username}_content.json")
+    path_to_file = os.path.join(file_dir, f"{username}_{content_type}.json")
 
     if not os.path.exists(file_dir):
         os.makedirs(file_dir)
@@ -21,6 +22,31 @@ def export_as_json(data: Dict, username: str):
             ensure_ascii=False,
             indent=4
         )
+
+
+def export_as_csv(data: Dict, headers_row: List,
+                  username: str, content_type: str):
+    file_dir = os.path.join(os.getcwd(), "downloads", username)
+    path_to_file = os.path.join(file_dir, f"{username}_{content_type}.csv")
+
+    if not os.path.exists(file_dir):
+        os.makedirs(file_dir)
+
+    with open(path_to_file, "w", encoding="utf-8", newline="") as file:
+        writer = csv.writer(file, delimiter=",")
+        writer.writerow(headers_row)
+
+        for content_type, info in data.items():
+            for values in info.values():
+                # pprint(values)
+                # print("-"*40)
+                writer.writerow(
+                    [values["comments"], values["description"],
+                     values["likes"], values["owner_link"],
+                     values["owner_username"], values["post_link"],
+                     values["posted_at"], values["title"], values["shortcode"],
+                     values["post_content"], values["post_content_len"], content_type]
+                )
 
 
 def download_file(url: str, content_type: str,
