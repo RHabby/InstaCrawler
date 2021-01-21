@@ -1,8 +1,26 @@
+import json
 import os
 from pprint import pprint
-from typing import OrderedDict, Dict
+from typing import Dict, OrderedDict
 
 import requests
+from prettytable import PrettyTable
+
+
+def export_as_json(data: Dict, username: str):
+    file_dir = os.path.join(os.getcwd(), "downloads", username)
+    path_to_file = os.path.join(file_dir, f"{username}_content.json")
+
+    if not os.path.exists(file_dir):
+        os.makedirs(file_dir)
+
+    with open(path_to_file, "w", encoding="utf-8") as file:
+        json.dump(
+            dict(OrderedDict(data)),
+            file,
+            ensure_ascii=False,
+            indent=4
+        )
 
 
 def download_file(url: str, content_type: str,
@@ -64,6 +82,56 @@ def download_all(posts: OrderedDict[str, Dict],
             url=item["link"],
             name=item["name"],
         )
+
+
+def print_user_info_table(user_info):
+    table = PrettyTable(padding_width=5)
+    table.field_names = ["FIELD NAME", "INFO"]
+
+    tds = {
+        "Instagram URL": user_info["user_url"],
+        "Username": user_info["username"],
+        "Bio": fr'{user_info["bio"]}',
+        "Full Name": user_info["full_name"].replace("\t", "-"),
+        "Business Category": user_info["business_category_name"],
+        "Category": user_info["category_name"],
+        "Followers": user_info["edge_followed_by"],
+        "Follows": user_info["edge_follow"],
+        "Posts": user_info["posts_count"],
+        "Reels": user_info["highlight_reel_count"],
+        "IGTV": user_info["igtv_count"],
+        "Is Private": user_info["is_private"],
+        "ID": user_info["id"],
+        "Ext URL": user_info["external_url"],
+        "Followed by Viewer": user_info["followed_by_viewer"],
+    }
+
+    for field, info in tds.items():
+        table.add_row([field, info])
+
+    print(table.get_string(
+        title=f"Info about {user_info['username']}`s instagram account"))
+
+
+def print_single_post_info_table(post_info):
+    table = PrettyTable(padding_width=3)
+    table.field_names = ["FIELD NAME", "POST INFO"]
+    table._max_width = {"POST INFO": 100}
+
+    for field, info in post_info.items():
+        post_links = []
+
+        if field == "post_content":
+            for i in range(len(post_info["post_content"])):
+                post_links.append(
+                    [f"link {i + 1}", f'{post_info["post_content"][i]}\n'])
+            table.add_rows(post_links)
+            continue
+
+        table.add_row([field, f"{info}\n"])
+
+    print(table.get_string(
+        title=f"{post_info['owner_username']}`s instagram post"))
 
 
 if __name__ == "__main__":
