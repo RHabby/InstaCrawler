@@ -25,6 +25,7 @@ class InstaCrawler:
         self.all_posts_query_hash = "003056d32c2554def87228bc3fd9668a"
         self.user_reels_query_hash = "d4d88dc1500312af6f937f7b804c68c3"
         self.user_igtvs_query_hash = "bc78b344a68ed16dd5d7f264681c4c76"
+        self.cookie_user_timeline_hash = "b1245d9d251dff47d91080fbdd6b274a"
         self.followers_query_hash = "c76146de99bb02f6415203be841dd25a"
         self.followed_by_user_query_hash = "d04b0a864b4b54837c0d870b0e77e076"
         self.x_ig_app_id = "936619743392459"
@@ -41,9 +42,21 @@ class InstaCrawler:
         data.raise_for_status()
         return data.json()
 
+    def get_cookie_user(self):
+        query_url = f"{self.BASE_URL}{self.GRAPHQL_QUERY}"
+        params = {
+            "query_hash": self.cookie_user_timeline_hash,
+        }
+        cookie_user_username = self._make_request(query_url, params=params)[
+            "data"]["user"]["username"]
+
+        user_url = f"{self.BASE_URL}{cookie_user_username}/"
+        cookie_user_info = self.get_user_info(url=user_url)
+
+        return cookie_user_info
+
     def get_user_info(self, url: str) -> Dict[str, str]:
         params = {"__a": 1}
-        # TODO: добавить проверку фолловится ли запрашиваемый юзером
         user_data = self._make_request(url, params)["graphql"]
 
         user_data = user_data.get("user") or user_data.get(
@@ -73,6 +86,8 @@ class InstaCrawler:
                 "count"
             ) if user_data.get("edge_owner_to_timeline_media") else None,
             "profile_pic_hd": user_data.get("profile_pic_url_hd"),
+            "followed_by_viewer": user_data.get("followed_by_viewer"),
+            "user_url": url,
         }
 
         return user_info
