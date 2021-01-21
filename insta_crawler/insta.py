@@ -254,7 +254,7 @@ class InstaCrawler:
                     "comments": post_info["comments"],
                     "description": igtv["edge_media_to_caption"]["edges"][0]["node"]["text"],
                     "likes": igtv["edge_liked_by"]["count"],
-                    "owner_link": post_info["owner"],
+                    "owner_link": post_info["owner_link"],
                     "owner_username": post_info["owner_username"],
                     "post_content": post_info["post_content"],
                     "post_content_len": 1,
