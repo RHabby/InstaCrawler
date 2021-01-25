@@ -2,6 +2,7 @@ import csv
 import json
 import os
 from pprint import pprint
+from time import sleep
 from typing import Dict, List, OrderedDict
 
 import requests
@@ -152,6 +153,17 @@ def print_single_post_info_table(post_info):
 
     print(table.get_string(
         title=f"{post_info['owner_username']}`s instagram post"))
+
+
+def how_sleep(data_len: int):
+    if data_len % 1000 == 0:
+        sleep(3)
+    elif data_len % 100 == 0:
+        sleep(2)
+    elif data_len % 25 == 0:
+        sleep(1)
+    else:
+        pass
 
 
 if __name__ == "__main__":
