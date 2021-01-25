@@ -383,7 +383,7 @@ class InstaCrawler:
             follower_url = f'{self.BASE_URL}{username}/'
             follower_info = self.get_user_info(url=follower_url)
             user_followers["followers"][username] = follower_info
-            how_sleep(data_len=len(user_followers["followers"])
+            how_sleep(data_len=len(user_followers["followers"]))
 
         return user_followers
 
@@ -397,8 +397,6 @@ class InstaCrawler:
             "usernames": [],
             "followed": {}
         }
-
-        print(user_info["edge_follow"])
 
         user_id = user_info["id"]
         while True:
@@ -418,17 +416,13 @@ class InstaCrawler:
 
             if data["page_info"]["has_next_page"]:
                 after = data["page_info"]["end_cursor"]
-                print(len(user_follow["usernames"]))
             else:
-                print(len(user_follow["usernames"]))
                 break
 
-        print(f'username count: {len(user_follow["usernames"])}')
         for username in user_follow["usernames"]:
             url_followed_by_user = f'{self.BASE_URL}{username}/'
             info = self.get_user_info(url=url_followed_by_user)
             user_follow["followed"][username] = info
-            print(f'Done: {len(user_follow["followed"])}')
             how_sleep(data_len=len(user_follow["followed"]))
 
         return user_follow
