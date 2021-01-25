@@ -5,6 +5,8 @@ from random import choice
 from time import sleep
 from typing import Dict, Union
 
+from utils import how_sleep
+
 import requests
 from fake_useragent import UserAgent
 
@@ -44,7 +46,7 @@ class InstaCrawler:
             )
         except Exception as e:
             print(e)
-            sleep(5)
+            sleep(3)
             data = requests.get(
                 url=url,
                 params=params,
@@ -381,9 +383,55 @@ class InstaCrawler:
             follower_url = f'{self.BASE_URL}{username}/'
             follower_info = self.get_user_info(url=follower_url)
             user_followers["followers"][username] = follower_info
-            sleep(choice([2, 3, 4]))
+            how_sleep(data_len=len(user_followers["followers"])
 
         return user_followers
+
+    def get_followed_by_user(self, url: str):
+        query_url = f"{self.BASE_URL}{self.GRAPHQL_QUERY}"
+        after = ""
+
+        user_info = self.get_user_info(url)
+        user_follow = {
+            "count": user_info["edge_follow"],
+            "usernames": [],
+            "followed": {}
+        }
+
+        print(user_info["edge_follow"])
+
+        user_id = user_info["id"]
+        while True:
+            params = {
+                "query_hash": self.followed_by_user_query_hash,
+                "id": user_id,
+                "first": 50,
+                "after": after if after else ""
+            }
+
+            data = self._make_request(
+                url=query_url, params=params)["data"]["user"]["edge_follow"]
+
+            for user in data["edges"]:
+                user_follow["usernames"].append(
+                    user["node"]["username"])
+
+            if data["page_info"]["has_next_page"]:
+                after = data["page_info"]["end_cursor"]
+                print(len(user_follow["usernames"]))
+            else:
+                print(len(user_follow["usernames"]))
+                break
+
+        print(f'username count: {len(user_follow["usernames"])}')
+        for username in user_follow["usernames"]:
+            url_followed_by_user = f'{self.BASE_URL}{username}/'
+            info = self.get_user_info(url=url_followed_by_user)
+            user_follow["followed"][username] = info
+            print(f'Done: {len(user_follow["followed"])}')
+            how_sleep(data_len=len(user_follow["followed"]))
+
+        return user_follow
 
     def _cookie_to_json(self) -> Dict:
         if isinstance(self.cookie, dict):
