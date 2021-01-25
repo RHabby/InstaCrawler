@@ -1,7 +1,9 @@
 from collections import OrderedDict
 from datetime import datetime as dt
-from typing import Dict, Union
 from pprint import pprint
+from random import choice
+from time import sleep
+from typing import Dict, Union
 
 import requests
 from fake_useragent import UserAgent
@@ -33,12 +35,22 @@ class InstaCrawler:
     def _make_request(self, url: str,
                       params: Dict[str, str],
                       headers: Dict[str, str] = {}) -> Dict:
-        data = requests.get(
-            url=url,
-            params=params,
-            cookies=self._cookie_to_json(),
-            headers=headers,
-        )
+        try:
+            data = requests.get(
+                url=url,
+                params=params,
+                cookies=self._cookie_to_json(),
+                headers=headers,
+            )
+        except Exception as e:
+            print(e)
+            sleep(5)
+            data = requests.get(
+                url=url,
+                params=params,
+                cookies=self._cookie_to_json(),
+                headers=headers,
+            )
         data.raise_for_status()
         return data.json()
 
@@ -329,6 +341,49 @@ class InstaCrawler:
                 ]
 
         return stories
+
+    def get_followers(self, url: str):
+        query_url = f"{self.BASE_URL}{self.GRAPHQL_QUERY}"
+        after = ""
+
+        user_info = self.get_user_info(url)
+        user_followers = {
+            "count": user_info["edge_followed_by"],
+            "followers_usernames": [],
+            "followers": {}
+        }
+
+        user_id = user_info["id"]
+        while True:
+            params = {
+                "query_hash": self.followers_query_hash,
+                "id": user_id,
+                "include_reel": False,
+                "fetch_mutual": False,
+                "first": 50,
+                "after": after if after else ""
+            }
+
+            data = self._make_request(
+                url=query_url, params=params
+            )["data"]["user"]["edge_followed_by"]
+
+            for user in data["edges"]:
+                user_followers["followers_usernames"].append(
+                    user["node"]["username"])
+
+            if data["page_info"]["has_next_page"]:
+                after = data["page_info"]["end_cursor"]
+            else:
+                break
+
+        for username in user_followers["followers_usernames"]:
+            follower_url = f'{self.BASE_URL}{username}/'
+            follower_info = self.get_user_info(url=follower_url)
+            user_followers["followers"][username] = follower_info
+            sleep(choice([2, 3, 4]))
+
+        return user_followers
 
     def _cookie_to_json(self) -> Dict:
         if isinstance(self.cookie, dict):
