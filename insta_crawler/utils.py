@@ -37,16 +37,10 @@ def export_as_csv(data: Dict, headers_row: List,
         writer.writerow(headers_row)
 
         for content_type, info in data.items():
-            for values in info.values():
-                # pprint(values)
-                # print("-"*40)
-                writer.writerow(
-                    [values["comments"], values["description"],
-                     values["likes"], values["owner_link"],
-                     values["owner_username"], values["post_link"],
-                     values["posted_at"], values["title"], values["shortcode"],
-                     values["post_content"], values["post_content_len"], content_type]
-                )
+            if isinstance(info, dict):
+                for value in info.values():
+                    row = [value[header] for header in headers_row]
+                    writer.writerow(row)
 
 
 def download_file(url: str, content_type: str,
