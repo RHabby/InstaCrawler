@@ -5,6 +5,7 @@ from random import choice
 from time import sleep
 from typing import Dict, Union
 
+from exceptions import NoCookieError, PrivateProfileError, NotFoundError
 from utils import how_sleep
 
 import requests
@@ -25,7 +26,10 @@ class InstaCrawler:
     cookie: str
 
     def __init__(self, cookie):
-        self.cookie = cookie or {}
+        if not cookie:
+            raise NoCookieError()
+        else:
+            self.cookie = cookie
         self.all_posts_query_hash = "003056d32c2554def87228bc3fd9668a"
         self.user_reels_query_hash = "d4d88dc1500312af6f937f7b804c68c3"
         self.user_igtvs_query_hash = "bc78b344a68ed16dd5d7f264681c4c76"
@@ -37,24 +41,27 @@ class InstaCrawler:
     def _make_request(self, url: str,
                       params: Dict[str, str],
                       headers: Dict[str, str] = {}) -> Dict:
-        try:
+        data = requests.get(
+            url=url,
+            params=params,
+            cookies=self._cookie_to_json(),
+            headers=headers,
+        )
+
+        if data.json():
+            return data.json()
+        elif not data.json():
+            original_url = data.url.split("?")[0]
             data = requests.get(
-                url=url,
-                params=params,
-                cookies=self._cookie_to_json(),
-                headers=headers,
+                url=original_url,
+                cookies=self._cookie_to_json()
             )
-        except Exception as e:
-            print(e)
-            sleep(3)
-            data = requests.get(
-                url=url,
-                params=params,
-                cookies=self._cookie_to_json(),
-                headers=headers,
-            )
-        data.raise_for_status()
-        return data.json()
+
+            if original_url == data.url:
+                raise NotFoundError()
+            else:
+                user_data = self.get_user_info(url=data.url)
+                self._can_parse_profile(user_data=user_data)
 
     def get_cookie_user(self):
         query_url = f"{self.BASE_URL}{self.GRAPHQL_QUERY}"
@@ -142,10 +149,13 @@ class InstaCrawler:
         return post_info
 
     def get_reels(self, url: str) -> OrderedDict:
+        user_data = self.get_user_info(url=url)
+        self._can_parse_profile(user_data=user_data)
+
         query_url = f"{self.BASE_URL}{self.GRAPHQL_QUERY}"
         params = {
             "query_hash": self.user_reels_query_hash,
-            "user_id": self.get_user_info(url)["id"],
+            "user_id": user_data["id"],
             "include_chaining": "true",
             "include_reel": "true",
             "include_suggested_users": "false",
@@ -192,10 +202,13 @@ class InstaCrawler:
         posts = OrderedDict()
         after = ""
 
+        user_data = self.get_user_info(url=url)
+        self._can_parse_profile(user_data=user_data)
+
         while True:
             params = {
                 "query_hash": self.all_posts_query_hash,
-                "id": self.get_user_info(url)["id"],
+                "id": user_data["id"],
                 "first": "50",
                 "after": after if after else None,
             }
@@ -242,6 +255,9 @@ class InstaCrawler:
         return posts
 
     def get_all_igtv(self, url: str) -> OrderedDict:
+        user_data = self.get_user_info(url=url)
+        self._can_parse_profile(user_data=user_data)
+
         query_url = f"{self.BASE_URL}{self.GRAPHQL_QUERY}"
         igtvs = OrderedDict()
         after = ""
@@ -249,7 +265,7 @@ class InstaCrawler:
         while True:
             params = {
                 "query_hash": self.user_igtvs_query_hash,
-                "id": self.get_user_info(url)["id"],
+                "id": user_data["id"],
                 "first": "50",
                 "after": after if after else "",
             }
@@ -285,13 +301,15 @@ class InstaCrawler:
 
         return igtvs
 
-    def get_stories(self,
-                    url: str = "",
-                    reel_id: str = "") -> OrderedDict:
+    def get_stories(self, url: str = "", reel_id: str = "") -> OrderedDict:
+        if url:
+            user_data = self.get_user_info(url=url)
+            self._can_parse_profile(user_data=user_data)
+
         query_url = f"{self.STORIES_URL}{self.STORIES_QUERY}"
 
         params = {
-            "reel_ids": reel_id if reel_id else self.get_user_info(url)["id"],
+            "reel_ids": reel_id if reel_id else user_data["id"],
         }
         headers = {
             "authority": "i.instagram.com",
@@ -345,17 +363,19 @@ class InstaCrawler:
         return stories
 
     def get_followers(self, url: str):
+        user_data = self.get_user_info(url=url)
+        self._can_parse_profile(user_data=user_data)
+
         query_url = f"{self.BASE_URL}{self.GRAPHQL_QUERY}"
         after = ""
 
-        user_info = self.get_user_info(url)
         user_followers = {
-            "count": user_info["edge_followed_by"],
+            "count": user_data["edge_followed_by"],
             "followers_usernames": [],
             "followers": {}
         }
 
-        user_id = user_info["id"]
+        user_id = user_data["id"]
         while True:
             params = {
                 "query_hash": self.followers_query_hash,
@@ -388,17 +408,19 @@ class InstaCrawler:
         return user_followers
 
     def get_followed_by_user(self, url: str):
+        user_data = self.get_user_info(url=url)
+        self._can_parse_profile(user_data=user_data)
+
         query_url = f"{self.BASE_URL}{self.GRAPHQL_QUERY}"
         after = ""
 
-        user_info = self.get_user_info(url)
         user_follow = {
-            "count": user_info["edge_follow"],
+            "count": user_data["edge_follow"],
             "usernames": [],
             "followed": {}
         }
 
-        user_id = user_info["id"]
+        user_id = user_data["id"]
         while True:
             params = {
                 "query_hash": self.followed_by_user_query_hash,
@@ -438,6 +460,14 @@ class InstaCrawler:
                     cookie.split("=")[0].strip()] = cookie.split("=")[1].strip()
 
         return cookie_dict
+
+    def _can_parse_profile(self, user_data: Dict):
+        if isinstance(user_data, dict):
+            is_private = user_data["is_private"]
+            followed_by_viewer = user_data["followed_by_viewer"]
+
+            if is_private and not followed_by_viewer:
+                raise PrivateProfileError()
 
 
 if __name__ == "__main__":
