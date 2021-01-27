@@ -7,6 +7,7 @@ from typing import Dict, List, OrderedDict
 
 import requests
 from prettytable import PrettyTable
+from tqdm import tqdm
 
 
 def export_as_json(data: Dict, username: str, content_type: str):
@@ -71,38 +72,41 @@ def download_file(url: str, content_type: str,
 def download_all(posts: OrderedDict[str, Dict],
                  content_type: str, username: str) -> None:
     undone = []
-    for addr, post in posts.items():
-        links = post["post_content"]
+    total_links = sum([len(post["post_content"]) for post in posts.values()])
 
-        for index, link in enumerate(links):
-            name = fr"{username}_{content_type}_{addr.replace('/', '_')}_0{index+1}{'.mp4' if 'mp4' in link else '.png'}"
-            try:
-                download_file(
-                    url=link,
-                    content_type=content_type,
-                    username=username,
-                    name=name,
-                )
-            except requests.exceptions.HTTPError:
-                continue
-            except Exception:
-                undone.append(
-                    {
-                        "username": username,
-                        "content_type": content_type,
-                        "link": link,
-                        "name": name,
-                    }
-                )
+    with tqdm(total=total_links, ) as pbar:
+        for addr, post in posts.items():
+            links = post["post_content"]
+            for index, link in enumerate(links):
+                name = fr"{username}_{content_type}_{addr.replace('/', '_')}_0{index+1}{'.mp4' if 'mp4' in link else '.png'}"
+                try:
+                    download_file(
+                        url=link,
+                        content_type=content_type,
+                        username=username,
+                        name=name,
+                    )
+                    pbar.update(1)
+                except requests.exceptions.HTTPError:
+                    continue
+                except Exception:
+                    undone.append(
+                        {
+                            "username": username,
+                            "content_type": content_type,
+                            "link": link,
+                            "name": name,
+                        }
+                    )
 
-    for item in undone:
-        pprint(undone)
-        download_file(
-            username=item["username"],
-            content_type=item["content_type"],
-            url=item["link"],
-            name=item["name"],
-        )
+        for item in undone:
+            download_file(
+                username=item["username"],
+                content_type=item["content_type"],
+                url=item["link"],
+                name=item["name"],
+            )
+            pbar.update(1)
 
 
 def print_user_info_table(user_info):
