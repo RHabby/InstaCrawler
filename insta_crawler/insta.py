@@ -13,6 +13,11 @@ from fake_useragent import UserAgent
 
 
 class InstaCrawler:
+    """
+    Used to collect information and data from Instagram profile.
+
+    :param cookie: cookie-string from your browser.
+    """
     BASE_URL: str = "https://www.instagram.com/"
     STORIES_URL: str = "https://i.instagram.com/"
     GRAPHQL_QUERY: str = "graphql/query/"
@@ -23,6 +28,8 @@ class InstaCrawler:
     followers_query_hash: str
     followed_by_user_query_hash: str
 
+    # Should be enough to paste values of 'ig_did' and 'sessionid'
+    # example: "ig_did=XXXXXXXX-YYYY-CCCC-AAAA-ZZZZZZZZZZZZ; sessionid=1111111111111111111111111;"
     cookie: str
 
     def __init__(self, cookie):
@@ -41,6 +48,15 @@ class InstaCrawler:
     def _make_request(self, url: str,
                       params: Dict[str, str],
                       headers: Dict[str, str] = {}) -> Dict:
+        """
+        Makes a request to the given url with the parameters, 
+        headers and cookies.
+
+        :param url: URL to send.
+        :param params: URL parameters to append to the URL.
+        :param headers: dictionary of headers to send.
+        """
+
         data = requests.get(
             url=url,
             params=params,
@@ -50,20 +66,31 @@ class InstaCrawler:
 
         if data.json():
             return data.json()
-        elif not data.json():
+        elif not data.json():  # This part for the single_post function
+            # url should be without any parameters
             original_url = data.url.split("?")[0]
+
             data = requests.get(
                 url=original_url,
                 cookies=self._cookie_to_json()
             )
-
+            # when the profile is private and the cookie user
+            # is not following the profile, the request url
+            # changes to the user profile url, but this is
+            # not a redirect, so we have to check if
+            # the original url and the redirected url are equal
             if original_url == data.url:
+                # if they are equal but the response is empty
                 raise NotFoundError()
             else:
                 user_data = self.get_user_info(url=data.url)
                 self._can_parse_profile(user_data=user_data)
 
     def get_cookie_user(self):
+        """
+        Gives an information about cookie-user.
+        """
+
         query_url = f"{self.BASE_URL}{self.GRAPHQL_QUERY}"
         params = {
             "query_hash": self.cookie_user_timeline_hash,
@@ -77,6 +104,12 @@ class InstaCrawler:
         return cookie_user_info
 
     def get_user_info(self, url: str) -> Dict[str, str]:
+        """
+        Gives information about the user by link to his profile.
+
+        :param url: link to a profile (https://www.instagram.com/username/).
+        """
+
         params = {"__a": 1}
         user_data = self._make_request(url, params)["graphql"]
 
@@ -114,6 +147,13 @@ class InstaCrawler:
         return user_info
 
     def get_single_post(self, url: str) -> Dict[str, Union[str, list]]:
+        """
+        Gives information about the post by link to it.
+
+        :param url: link to the post or igtv
+        (https://www.instagram.com/[p OR tv]/shortcode/).
+        """
+
         params = {"__a": "1"}
 
         post_data = self._make_request(url, params)[
@@ -148,7 +188,14 @@ class InstaCrawler:
 
         return post_info
 
-    def get_reels(self, url: str) -> OrderedDict:
+    def get_highlights(self, url: str) -> OrderedDict:
+        """
+        Collects all content and information about highlights
+        on the user page.
+
+        :param url: link to a profile (https://www.instagram.com/username/).
+        """
+
         user_data = self.get_user_info(url=url)
         self._can_parse_profile(user_data=user_data)
 
@@ -164,40 +211,47 @@ class InstaCrawler:
             "include_live_status": "true",
         }
 
-        reels_data = self._make_request(query_url, params=params)[
+        highlights_data = self._make_request(query_url, params=params)[
             "data"]["user"]
 
-        reels = OrderedDict()
-        for reel in reels_data["edge_highlight_reels"]["edges"]:
-            reel_content = self.get_stories(
-                reel_id=f'highlight:{reel["node"]["id"]}'
+        highlights = OrderedDict()
+        for hl in highlights_data["edge_highlight_reels"]["edges"]:
+            highlights_content = self.get_stories(
+                reel_id=f'highlight:{hl["node"]["id"]}'
             )
 
-            username = reels_data["reel"]["owner"]["username"]
+            username = highlights_data["reel"]["owner"]["username"]
 
             post_content = [
                 post["post_content"][0]
-                for post in reel_content.values()
+                for post in highlights_content.values()
             ]
 
-            reels[reel["node"]["id"]] = {
+            highlights[hl["node"]["id"]] = {
                 "comments": None,
                 "description": None,
                 "likes": None,
                 "owner_link": f'{self.BASE_URL}{username}',
                 "owner_username": username,
-                "id": reel["node"]["id"],
+                "id": hl["node"]["id"],
                 "post_content": post_content,
                 "post_content_len": len(post_content),
-                "post_link": f'{self.BASE_URL}stories/highlights/{reel["node"]["id"]}',
+                "post_link": f'{self.BASE_URL}stories/highlights/{hl["node"]["id"]}',
                 "posted_at": None,
-                "title": reel["node"]["title"],
+                "title": hl["node"]["title"],
                 "shortcode": None,
             }
 
-        return reels
+        return highlights
 
     def get_posts(self, url: str) -> OrderedDict:
+        """
+        Collects all content and information about regular posts
+        on the user page.
+
+        :param url: link to a profile (https://www.instagram.com/username/).
+        """
+
         query_url = f"{self.BASE_URL}{self.GRAPHQL_QUERY}"
         posts = OrderedDict()
         after = ""
@@ -255,6 +309,13 @@ class InstaCrawler:
         return posts
 
     def get_all_igtv(self, url: str) -> OrderedDict:
+        """
+        Collects all content and information about igtvs
+        on the user page.
+
+        :param url: link to a profile (https://www.instagram.com/username/).
+        """
+
         user_data = self.get_user_info(url=url)
         self._can_parse_profile(user_data=user_data)
 
@@ -302,6 +363,13 @@ class InstaCrawler:
         return igtvs
 
     def get_stories(self, url: str = "", reel_id: str = "") -> OrderedDict:
+        """
+        Collects all content and information about active stories
+        on the user page.
+
+        :param url: link to a profile (https://www.instagram.com/username/).
+        """
+
         if url:
             user_data = self.get_user_info(url=url)
             self._can_parse_profile(user_data=user_data)
@@ -362,7 +430,13 @@ class InstaCrawler:
 
         return stories
 
-    def get_followers(self, url: str):
+    def get_followers(self, url: str) -> Dict:
+        """
+        Collects all information about user followers.
+
+        :param url: link to a profile (https://www.instagram.com/username/).
+        """
+
         user_data = self.get_user_info(url=url)
         self._can_parse_profile(user_data=user_data)
 
@@ -407,7 +481,14 @@ class InstaCrawler:
 
         return user_followers
 
-    def get_followed_by_user(self, url: str):
+    def get_followed_by_user(self, url: str) -> Dict:
+        """
+        Collects all information about users followed
+        by requested profile owner.
+
+        :param url: link to a profile (https://www.instagram.com/username/).
+        """
+
         user_data = self.get_user_info(url=url)
         self._can_parse_profile(user_data=user_data)
 
@@ -450,6 +531,10 @@ class InstaCrawler:
         return user_follow
 
     def _cookie_to_json(self) -> Dict:
+        """
+        Converts a cookie-string to a dictionary. 
+        """
+
         if isinstance(self.cookie, dict):
             return self.cookie
 
@@ -462,6 +547,16 @@ class InstaCrawler:
         return cookie_dict
 
     def _can_parse_profile(self, user_data: Dict):
+        """
+        Check can or cannot parse a user's profile,
+        depending on account privacy and is the viewer
+        followed to that or not.
+
+        :param user-data: dictionary with information about user account.
+        :raises :class: `PrivateProfileError`
+        if the declared statement occurred.
+        """
+
         if isinstance(user_data, dict):
             is_private = user_data["is_private"]
             followed_by_viewer = user_data["followed_by_viewer"]
