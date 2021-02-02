@@ -1,12 +1,14 @@
 from collections import OrderedDict
 from datetime import datetime as dt
+from json.decoder import JSONDecodeError
 from pprint import pprint
 from random import choice
 from time import sleep
 from typing import Dict, Union
 
-from exceptions import NoCookieError, PrivateProfileError, NotFoundError
-from utils import how_sleep
+from insta_crawler.exceptions import (BlockedByInstagramError, NoCookieError,
+                                      PrivateProfileError, NotFoundError)
+from insta_crawler.utils import how_sleep
 
 import requests
 from fake_useragent import UserAgent
@@ -49,7 +51,7 @@ class InstaCrawler:
                       params: Dict[str, str],
                       headers: Dict[str, str] = {}) -> Dict:
         """
-        Makes a request to the given url with the parameters, 
+        Makes a request to the given url with the parameters,
         headers and cookies.
 
         :param url: URL to send.
@@ -65,11 +67,13 @@ class InstaCrawler:
         )
 
         if data.json():
-            return data.json()
+            try:
+                return data.json()
+            except JSONDecodeError:
+                raise BlockedByInstagramError()
         elif not data.json():  # This part for the single_post function
             # url should be without any parameters
             original_url = data.url.split("?")[0]
-
             data = requests.get(
                 url=original_url,
                 cookies=self._cookie_to_json()
@@ -86,7 +90,7 @@ class InstaCrawler:
                 user_data = self.get_user_info(url=data.url)
                 self._can_parse_profile(user_data=user_data)
 
-    def get_cookie_user(self):
+    def get_cookie_user(self) -> Dict:
         """
         Gives an information about cookie-user.
         """
@@ -103,7 +107,7 @@ class InstaCrawler:
 
         return cookie_user_info
 
-    def get_user_info(self, url: str) -> Dict[str, str]:
+    def get_user_info(self, url: str) -> Dict:
         """
         Gives information about the user by link to his profile.
 
@@ -115,6 +119,14 @@ class InstaCrawler:
 
         user_data = user_data.get("user") or user_data.get(
             "shortcode_media")["owner"]
+
+        if user_data.get("edge_owner_to_timeline_media"):
+            last_12_posts_shortcodes = [post["node"]["shortcode"]
+                                        for post in user_data["edge_owner_to_timeline_media"]["edges"]]
+            posts_count = user_data["edge_owner_to_timeline_media"]["count"]
+        else:
+            last_12_posts_shortcodes = None
+            posts_count = None
 
         user_info = {
             "bio": user_data.get("biography"),
@@ -136,9 +148,8 @@ class InstaCrawler:
             "igtv_count": user_data.get("edge_felix_video_timeline").get(
                 "count"
             ) if user_data.get("edge_felix_video_timeline") else None,
-            "posts_count": user_data.get("edge_owner_to_timeline_media").get(
-                "count"
-            ) if user_data.get("edge_owner_to_timeline_media") else None,
+            "posts_count": posts_count,
+            "last_12_posts_shortcodes": last_12_posts_shortcodes,
             "profile_pic_hd": user_data.get("profile_pic_url_hd"),
             "followed_by_viewer": user_data.get("followed_by_viewer"),
             "user_url": url,
@@ -146,7 +157,7 @@ class InstaCrawler:
 
         return user_info
 
-    def get_single_post(self, url: str) -> Dict[str, Union[str, list]]:
+    def get_single_post(self, url: str) -> Dict:
         """
         Gives information about the post by link to it.
 
