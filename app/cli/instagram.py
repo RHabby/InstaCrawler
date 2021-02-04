@@ -1,3 +1,4 @@
+import app.config as config
 import click
 from app.insta_crawler import exceptions as exc
 from app.insta_crawler.insta import InstaCrawler
@@ -32,16 +33,14 @@ def cookie_user(cookie: str):
     --cookie="ig_did=XXXXXXXX-YYYY-CCCC-AAAA-ZZZZZZZZZZZZ; sessionid=1111111111111111111111111;"
     """
 
+    inst = InstaCrawler(cookie=cookie)
     try:
-        inst = InstaCrawler(cookie=cookie)
-    except exc.NoCookieError:
-        click.echo("You forgot the cookie-string.")
-        return
-
-    cookie_user = inst.get_cookie_user()
-
-    click.echo("There it is:")
-    print_user_info_table(user_info=cookie_user)
+        cookie_user = inst.get_cookie_user()
+    except exc.BlockedByInstagramError as e:
+        click.echo(e)
+    else:
+        click.echo("There it is:")
+        print_user_info_table(user_info=cookie_user)
 
 
 @get_insta.command("user-info", short_help="user info by URL")
@@ -62,9 +61,16 @@ def user_info(cookie: str, username: str):
 
     inst = InstaCrawler(cookie=cookie)
     USER_URL = "https://www.instagram.com/{username}/"
-    user_info = inst.get_user_info(url=USER_URL.format(username=username))
-    click.echo("There it is:")
-    print_user_info_table(user_info=user_info)
+
+    try:
+        user_info = inst.get_user_info(url=USER_URL.format(username=username))
+    except exc.BlockedByInstagramError as e:
+        click.echo(e)
+    except exc.NotFoundError as e:
+        click.echo(e)
+    else:
+        click.echo("There it is:")
+        print_user_info_table(user_info=user_info)
 
 
 @get_insta.command("post", short_help="post info by URL")
@@ -83,19 +89,28 @@ def post(cookie: str, url: str):
     """
 
     inst = InstaCrawler(cookie=cookie)
-    links = inst.get_single_post(url=url)
-    click.echo("There it is:")
-    print_single_post_info_table(post_info=links)
 
-    if click.confirm("\nWould you like to download the content of the post?",
-                     abort=True):
-        for index, link in enumerate(links["post_content"]):
-            name = f"{links['owner_username']}_{links['shortcode']}_{index + 1}{'.mp4' if '.mp4' in link else '.png'}"
+    try:
+        links = inst.get_single_post(url=url)
+    except exc.BlockedByInstagramError as e:
+        click.echo(e)
+    except exc.NotFoundError as e:
+        click.echo(e)
+    except exc.PrivateProfileError as e:
+        click.echo(e)
+    else:
+        click.echo("There it is:")
+        print_single_post_info_table(post_info=links)
 
-            download_file(url=link, content_type="posts",
-                          username=links["owner_username"], name=name)
+        if click.confirm("\nWould you like to download the post content?",
+                         abort=True):
+            for index, link in enumerate(links["post_content"]):
+                name = f"{links['owner_username']}_{links['shortcode']}_{index + 1}{'.mp4' if '.mp4' in link else '.png'}"
 
-    click.echo("\nAll done")
+                download_file(url=link, content_type="posts",
+                              username=links["owner_username"], name=name)
+
+        click.echo("\nAll done")
 
 
 @get_insta.command("category", short_help="full category info")
@@ -125,49 +140,55 @@ def category(cookie: str, username: str, content_type: str):
     insta = InstaCrawler(cookie=cookie)
 
     data = {}
-    if content_type == "posts":
-        data[content_type] = insta.get_posts(url=USER_URL)
-    if content_type == "stories":
-        data[content_type] = insta.get_stories(url=USER_URL)
-    if content_type == "reels":
-        data[content_type] = insta.get_highlights(url=USER_URL)
-    if content_type == "igtv":
-        data[content_type] = insta.get_all_igtv(url=USER_URL)
-    if content_type == "all":
-        data = {
-            "posts": insta.get_posts(url=USER_URL),
-            "stories": insta.get_stories(url=USER_URL),
-            "highlights": insta.get_highlights(url=USER_URL),
-            "igtv": insta.get_all_igtv(url=USER_URL)
-        }
+    try:
+        if content_type == "posts":
+            data[content_type] = insta.get_posts(url=USER_URL)
+        if content_type == "stories":
+            data[content_type] = insta.get_stories(url=USER_URL)
+        if content_type == "reels":
+            data[content_type] = insta.get_highlights(url=USER_URL)
+        if content_type == "igtv":
+            data[content_type] = insta.get_all_igtv(url=USER_URL)
+        if content_type == "all":
+            data = {
+                "posts": insta.get_posts(url=USER_URL),
+                "stories": insta.get_stories(url=USER_URL),
+                "highlights": insta.get_highlights(url=USER_URL),
+                "igtv": insta.get_all_igtv(url=USER_URL)
+            }
+    except exc.BlockedByInstagramError as e:
+        click.echo(e)
+    except exc.NotFoundError as e:
+        click.echo(e)
+    except exc.PrivateProfileError as e:
+        click.echo(e)
+    else:
+        click.echo("All data has been collected")
+        click.echo("-" * 80)
+        if click.confirm("Would you like to save the page content as JSON?"):
+            export_as_json(data=data, username=username,
+                           content_type="content")
+        click.echo("-" * 80)
 
-    click.echo("All data has been collected")
-    click.echo("-" * 80)
-    if click.confirm("Would you like to save the content of the post as JSON?"):
-        export_as_json(data=data, username=username, content_type="content")
-    click.echo("-" * 80)
+        if click.confirm("Would you like to save the page content as CSV?"):
+            export_as_csv(data=data,
+                          headers_row=config.category_headers_row,
+                          username=username, content_type="content")
+        click.echo("-" * 80)
 
-    if click.confirm("Would you like to save the content of the post as CSV?"):
-        headers_row = ["comments", "description", "likes",
-                       "owner_link", "owner_username", "post_link",
-                       "posted_at", "title", "shortcode", "post_content",
-                       "post_content_len"]
-        export_as_csv(data=data, headers_row=headers_row,
-                      username=username, content_type="content")
-    click.echo("-" * 80)
+        if click.confirm("Would you like to download the page content?",
+                         abort=True):
+            for ct, value in data.items():
+                if value:
+                    click.echo(f'I am downloading {ct} content now...')
+                    download_all(posts=value,
+                                 content_type=ct,
+                                 username=username)
+                    click.echo("-" * 80)
+                else:
+                    continue
 
-    if click.confirm("Would you like to download the content of the post?", abort=True):
-        for ct, value in data.items():
-            if value:
-                click.echo(f'I am downloading {ct} content now...')
-                download_all(posts=value,
-                             content_type=ct,
-                             username=username)
-                click.echo("-" * 80)
-            else:
-                continue
-
-    click.echo("All done!")
+        click.echo("All done!")
 
 
 @get_insta.command("followers", short_help="user followers")
@@ -189,27 +210,31 @@ def followers(cookie: str, username: str):
     USER_URL = f"https://www.instagram.com/{username}"
 
     insta = InstaCrawler(cookie=cookie)
-    followers = insta.get_followers(url=USER_URL)
+    try:
+        followers = insta.get_followers(url=USER_URL)
+    except exc.BlockedByInstagramError as e:
+        click.echo(e)
+    except exc.NotFoundError as e:
+        click.echo(e)
+    except exc.PrivateProfileError as e:
+        click.echo(e)
+    else:
+        click.echo("All data has been collected")
+        click.echo("-" * 80)
+        if click.confirm(
+                "Would you like to download info about the pages that follow the user as JSON?"):
+            export_as_json(data=followers, username=username,
+                           content_type="followers")
+        click.echo("-" * 80)
 
-    click.echo("All data has been collected")
-    click.echo("-" * 80)
-    if click.confirm("Would you like to save the content of the post as JSON?"):
-        export_as_json(data=followers, username=username,
-                       content_type="followers")
-    click.echo("-" * 80)
+        if click.confirm(
+                "Would you like to download info about the pages that follow the user as CSV?"):
+            export_as_csv(data=followers, username=username,
+                          content_type="followers",
+                          headers_row=config.followers_headers_row)
 
-    if click.confirm("Would you like to save the content of the post as CSV?"):
-        headers_row = ["bio", "external_url", "edge_followed_by",
-                       "edge_follow", "full_name", "highlight_reel_count",
-                       "id", "is_business_account", "business_category_name",
-                       "category_name", "is_private", "username", "igtv_count",
-                       "posts_count", "profile_pic_hd", "followed_by_viewer",
-                       "user_url"]
-        export_as_csv(data=followers, headers_row=headers_row,
-                      username=username, content_type="followers")
-
-    click.echo("-" * 80)
-    click.echo("All done!")
+        click.echo("-" * 80)
+        click.echo("All done!")
 
 
 @get_insta.command("followed-by-user", short_help="profiles followed by user")
@@ -232,25 +257,29 @@ def followed_by_user(cookie: str, username: str):
     USER_URL = f"https://www.instagram.com/{username}"
 
     insta = InstaCrawler(cookie=cookie)
-    user_follow = insta.get_followed_by_user(url=USER_URL)
+    try:
+        user_follow = insta.get_followed_by_user(url=USER_URL)
+    except exc.BlockedByInstagramError as e:
+        click.echo(e)
+    except exc.NotFoundError as e:
+        click.echo(e)
+    except exc.PrivateProfileError as e:
+        click.echo(e)
+    else:
+        click.echo("All data has been collected")
+        click.echo("-" * 80)
 
-    click.echo("All data has been collected")
-    click.echo("-" * 80)
+        if click.confirm(
+                "Would you like to download info about the pages followed by user as JSON?"):
+            export_as_json(data=user_follow, username=username,
+                           content_type="followed_by")
+        click.echo("-" * 80)
 
-    if click.confirm("Would you like to save the content of the post as JSON?"):
-        export_as_json(data=user_follow, username=username,
-                       content_type="followed_by")
-    click.echo("-" * 80)
+        if click.confirm(
+                "Would you like to download info about the pages followed by user as CSV?"):
+            export_as_csv(data=user_follow, username=username,
+                          content_type="followed_by",
+                          headers_row=config.followers_headers_row)
 
-    if click.confirm("Would you like to save the content of the post as CSV?"):
-        headers_row = ["bio", "external_url", "edge_followed_by",
-                       "edge_follow", "full_name", "highlight_reel_count",
-                       "id", "is_business_account", "business_category_name",
-                       "category_name", "is_private", "username", "igtv_count",
-                       "posts_count", "profile_pic_hd", "followed_by_viewer",
-                       "user_url"]
-        export_as_csv(data=user_follow, headers_row=headers_row,
-                      username=username, content_type="followed_by")
-
-    click.echo("-" * 80)
-    click.echo("All done!")
+        click.echo("-" * 80)
+        click.echo("All done!")
