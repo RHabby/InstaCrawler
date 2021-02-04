@@ -56,36 +56,36 @@ class InstaCrawler:
         :param headers: dictionary of headers to send.
         """
 
-        data = requests.get(
-            url=url,
-            params=params,
-            cookies=self._cookie_to_json(),
-            headers=headers,
-        )
-
-        if data.json():
-            try:
-                return data.json()
-            except JSONDecodeError:
-                raise BlockedByInstagramError()
-        elif not data.json():  # This part for the single_post function
-            # url should be without any parameters
-            original_url = data.url.split("?")[0]
+        try:
             data = requests.get(
-                url=original_url,
-                cookies=self._cookie_to_json()
+                url=url,
+                params=params,
+                cookies=self._cookie_to_json(),
+                headers=headers,
             )
-            # when the profile is private and the cookie user
-            # is not following the profile, the request url
-            # changes to the user profile url, but this is
-            # not a redirect, so we have to check if
-            # the original url and the redirected url are equal
-            if original_url == data.url:
-                # if they are equal but the response is empty
-                raise NotFoundError()
-            else:
-                user_data = self.get_user_info(url=data.url)
-                self._can_parse_profile(user_data=user_data)
+        except JSONDecodeError:
+            raise BlockedByInstagramError()
+        else:
+            if data.json():
+                return data.json()
+            elif not data.json():  # This part for the single_post function
+                # url should be without any parameters
+                original_url = data.url.split("?")[0]
+                data = requests.get(
+                    url=original_url,
+                    cookies=self._cookie_to_json()
+                )
+                # when the profile is private and the cookie user
+                # is not following the profile, the request url
+                # changes to the user profile url, but this is
+                # not a redirect, so we have to check if
+                # the original url and the redirected url are equal
+                if original_url == data.url:
+                    # if they are equal but the response is empty
+                    raise NotFoundError()
+                else:
+                    user_data = self.get_user_info(url=data.url)
+                    self._can_parse_profile(user_data=user_data)
 
     def get_cookie_user(self) -> Dict:
         """
