@@ -163,30 +163,33 @@ def category(cookie: str, username: str, content_type: str):
     except exc.PrivateProfileError as e:
         click.echo(e)
     else:
-        click.echo("All data has been collected")
-        click.echo("-" * 80)
-        if click.confirm("Would you like to save the page content as JSON?"):
-            export_as_json(data=data, username=username,
-                           content_type="content")
-        click.echo("-" * 80)
+        if sum([len(value) for value in data.values()]) == 0:
+            click.echo("It looks like there is nothing to save.")
+        else:
+            click.echo("All data has been collected")
+            click.echo("-" * 80)
+            if click.confirm("Would you like to save the page content as JSON?"):
+                export_as_json(data=data, username=username,
+                               content_type="content")
+            click.echo("-" * 80)
 
-        if click.confirm("Would you like to save the page content as CSV?"):
-            export_as_csv(data=data,
-                          headers_row=config.category_headers_row,
-                          username=username, content_type="content")
-        click.echo("-" * 80)
+            if click.confirm("Would you like to save the page content as CSV?"):
+                export_as_csv(data=data,
+                              headers_row=config.category_headers_row,
+                              username=username, content_type="content")
+            click.echo("-" * 80)
 
-        if click.confirm("Would you like to download the page content?",
-                         abort=True):
-            for ct, value in data.items():
-                if value:
-                    click.echo(f'I am downloading {ct} content now...')
-                    download_all(posts=value,
-                                 content_type=ct,
-                                 username=username)
-                    click.echo("-" * 80)
-                else:
-                    continue
+            if click.confirm("Would you like to download the page content?",
+                             abort=True):
+                for ct, value in data.items():
+                    if value:
+                        click.echo(f'I am downloading {ct} content now...')
+                        download_all(posts=value,
+                                     content_type=ct,
+                                     username=username)
+                        click.echo("-" * 80)
+                    else:
+                        continue
 
         click.echo("All done!")
 
