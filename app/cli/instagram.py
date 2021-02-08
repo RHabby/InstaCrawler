@@ -164,7 +164,7 @@ def category(cookie: str, username: str, content_type: str):
         click.echo(e)
     else:
         if sum([len(value) for value in data.values()]) == 0:
-            click.echo("It looks like there is nothing to save.")
+            click.echo("It looks like there is nothing to download.")
         else:
             click.echo("All data has been collected")
             click.echo("-" * 80)
