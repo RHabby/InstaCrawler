@@ -160,11 +160,11 @@ def print_single_post_info_table(post_info):
 
 def how_sleep(data_len: int):
     if data_len % 1000 == 0:
-        sleep(3)
+        sleep(8)
     elif data_len % 100 == 0:
-        sleep(2)
+        sleep(3)
     elif data_len % 25 == 0:
-        sleep(1)
+        sleep(2)
     else:
         pass
 
