@@ -183,7 +183,7 @@ def category(cookie: str, username: str, content_type: str):
                              abort=True):
                 for ct, value in data.items():
                     if value:
-                        click.echo(f'I am downloading {ct} content now...')
+                        click.echo(f'Downloading {ct}...')
                         download_all(posts=value,
                                      content_type=ct,
                                      username=username)
