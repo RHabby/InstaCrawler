@@ -33,7 +33,7 @@ class InstaCrawler:
 
     def __init__(self, cookie):
         if not cookie:
-            raise NoCookieError()
+            raise NoCookieError
         else:
             self.cookie = cookie
         self.all_posts_query_hash = "003056d32c2554def87228bc3fd9668a"
@@ -55,17 +55,14 @@ class InstaCrawler:
         :param params: URL parameters to append to the URL.
         :param headers: dictionary of headers to send.
         """
+        data = requests.get(
+            url=url,
+            params=params,
+            cookies=self._cookie_to_json(),
+            headers=headers,
+        )
 
         try:
-            data = requests.get(
-                url=url,
-                params=params,
-                cookies=self._cookie_to_json(),
-                headers=headers,
-            )
-        except JSONDecodeError:
-            raise BlockedByInstagramError()
-        else:
             if data.json():
                 return data.json()
             elif not data.json():  # This part for the single_post function
@@ -82,10 +79,12 @@ class InstaCrawler:
                 # the original url and the redirected url are equal
                 if original_url == data.url:
                     # if they are equal but the response is empty
-                    raise NotFoundError()
+                    raise NotFoundError
                 else:
                     user_data = self.get_user_info(url=data.url)
                     self._can_parse_profile(user_data=user_data)
+        except JSONDecodeError:
+            raise BlockedByInstagramError
 
     def get_cookie_user(self) -> Dict:
         """
@@ -489,6 +488,7 @@ class InstaCrawler:
 
         return user_followers
 
+    # almost 17 minutes for 800 items
     def get_followed_by_user(self, url: str) -> Dict:
         """
         Collects all information about users followed
@@ -508,8 +508,8 @@ class InstaCrawler:
             "usernames": [],
             "followed": {}
         }
-
         user_id = user_data["id"]
+
         while True:
             params = {
                 "query_hash": self.followed_by_user_query_hash,
@@ -565,9 +565,9 @@ class InstaCrawler:
         if the declared statement occurred.
         """
 
-        if isinstance(user_data, dict):
+        if isinstance(user_data, Dict):
             is_private = user_data["is_private"]
             followed_by_viewer = user_data["followed_by_viewer"]
 
             if is_private and not followed_by_viewer:
-                raise PrivateProfileError()
+                raise PrivateProfileError
