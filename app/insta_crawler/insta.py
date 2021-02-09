@@ -1,7 +1,8 @@
+import logging
 from collections import OrderedDict
 from datetime import datetime as dt
 from json.decoder import JSONDecodeError
-from typing import Dict
+from typing import Dict, Union
 
 import requests
 from app.insta_crawler.exceptions import (BlockedByInstagramError,
@@ -9,7 +10,6 @@ from app.insta_crawler.exceptions import (BlockedByInstagramError,
                                           PrivateProfileError)
 from app.insta_crawler.utils import how_sleep
 from fake_useragent import UserAgent
-import logging
 
 
 class InstaCrawler:
@@ -28,6 +28,8 @@ class InstaCrawler:
     followers_query_hash: str
     followed_by_user_query_hash: str
 
+    user_info: Union[Dict, None]
+
     # Should be enough to paste values of 'ig_did' and 'sessionid'
     # example: "ig_did=XXXXXXXX-YYYY-CCCC-AAAA-ZZZZZZZZZZZZ; sessionid=1111111111111111111111111;"
     cookie: str
@@ -45,6 +47,8 @@ class InstaCrawler:
         self.followers_query_hash = "c76146de99bb02f6415203be841dd25a"
         self.followed_by_user_query_hash = "d04b0a864b4b54837c0d870b0e77e076"
         self.x_ig_app_id = "936619743392459"
+
+        self.user_info = None
 
         logging.basicConfig(filename="insta_crawler.log",
                             format="%(asctime)s: %(name)s: %(levelname)s: %(funcName)s: %(lineno)s: %(message)s",
@@ -103,13 +107,16 @@ class InstaCrawler:
         params = {
             "query_hash": self.cookie_user_timeline_hash,
         }
-        cookie_user_username = self._make_request(query_url, params=params)[
-            "data"]["user"]["username"]
+        cookie_user_username = self._make_request(
+            query_url, params=params
+        )["data"]["user"]["username"]
 
         user_url = f"{self.BASE_URL}{cookie_user_username}/"
         cookie_user_info = self.get_user_info(url=user_url)
+        self.user_info = None
 
         logging.info(msg=f"cookie user: {user_url}")
+
         return cookie_user_info
 
     def get_user_info(self, url: str) -> Dict:
@@ -118,50 +125,55 @@ class InstaCrawler:
 
         :param url: link to a profile (https://www.instagram.com/username/).
         """
-        logging.info(msg="Enter...")
 
         params = {"__a": 1}
-        user_data = self._make_request(url, params)["graphql"]
 
-        user_data = user_data.get("user") or user_data.get(
-            "shortcode_media")["owner"]
+        if not (self.user_info and self.user_info.get("user_url") == url):
+            logging.info(msg="request for the user info")
+            user_data = self._make_request(url, params)["graphql"]
+            user_data = user_data.get("user") or user_data.get(
+                "shortcode_media")["owner"]
 
-        if user_data.get("edge_owner_to_timeline_media"):
-            last_12_posts_shortcodes = [post["node"]["shortcode"]
-                                        for post in user_data["edge_owner_to_timeline_media"]["edges"]]
-            posts_count = user_data["edge_owner_to_timeline_media"]["count"]
-        else:
-            last_12_posts_shortcodes = None
-            posts_count = None
+            if user_data.get("edge_owner_to_timeline_media"):
+                last_12_posts_shortcodes = [
+                    post["node"]["shortcode"] for post in user_data[
+                        "edge_owner_to_timeline_media"]["edges"]
+                ]
 
-        user_info = {
-            "bio": user_data.get("biography"),
-            "external_url": user_data.get("external_url"),
-            "edge_followed_by": user_data.get("edge_followed_by").get(
-                "count"
-            ) if user_data.get("edge_followed_by") else None,
-            "edge_follow": user_data.get("edge_follow").get(
-                "count"
-            ) if user_data.get("edge_follow") else None,
-            "full_name": user_data.get("full_name"),
-            "highlight_reel_count": user_data.get("highlight_reel_count"),
-            "id": user_data.get("id"),
-            "is_business_account": user_data.get("is_business_account"),
-            "business_category_name": user_data.get("business_category_name"),
-            "category_name": user_data.get("category_name"),
-            "is_private": user_data.get("is_private"),
-            "username": user_data.get("username"),
-            "igtv_count": user_data.get("edge_felix_video_timeline").get(
-                "count"
-            ) if user_data.get("edge_felix_video_timeline") else None,
-            "posts_count": posts_count,
-            "last_12_posts_shortcodes": last_12_posts_shortcodes,
-            "profile_pic_hd": user_data.get("profile_pic_url_hd"),
-            "followed_by_viewer": user_data.get("followed_by_viewer"),
-            "user_url": url,
-        }
-        logging.info(msg=f'user: {user_info["user_url"]}')
-        return user_info
+                posts_count = user_data["edge_owner_to_timeline_media"]["count"]
+            else:
+                last_12_posts_shortcodes = None
+                posts_count = None
+
+            self.user_info = {
+                "bio": user_data.get("biography"),
+                "external_url": user_data.get("external_url"),
+                "edge_followed_by": user_data.get("edge_followed_by").get(
+                    "count"
+                ) if user_data.get("edge_followed_by") else None,
+                "edge_follow": user_data.get("edge_follow").get(
+                    "count"
+                ) if user_data.get("edge_follow") else None,
+                "full_name": user_data.get("full_name"),
+                "highlight_reel_count": user_data.get("highlight_reel_count"),
+                "id": user_data.get("id"),
+                "is_business_account": user_data.get("is_business_account"),
+                "business_category_name": user_data.get("business_category_name"),
+                "category_name": user_data.get("category_name"),
+                "is_private": user_data.get("is_private"),
+                "username": user_data.get("username"),
+                "igtv_count": user_data.get("edge_felix_video_timeline").get(
+                    "count"
+                ) if user_data.get("edge_felix_video_timeline") else None,
+                "posts_count": posts_count,
+                "last_12_posts_shortcodes": last_12_posts_shortcodes,
+                "profile_pic_hd": user_data.get("profile_pic_url_hd"),
+                "followed_by_viewer": user_data.get("followed_by_viewer"),
+                "user_url": url,
+            }
+            logging.info(msg=f'user: {self.user_info["user_url"]}')
+
+        return self.user_info
 
     def get_single_post(self, url: str) -> Dict:
         """
@@ -170,10 +182,8 @@ class InstaCrawler:
         :param url: link to the post or igtv
         (https://www.instagram.com/[p OR tv]/shortcode/).
         """
-        logging.info(msg="Enter...")
 
         params = {"__a": "1"}
-
         post_data = self._make_request(url, params)[
             "graphql"]["shortcode_media"]
 
@@ -214,7 +224,6 @@ class InstaCrawler:
 
         :param url: link to a profile (https://www.instagram.com/username/).
         """
-        logging.info(msg=f'Enter...')
 
         user_data = self.get_user_info(url=url)
         self._can_parse_profile(user_data=user_data)
@@ -233,6 +242,8 @@ class InstaCrawler:
 
         highlights_data = self._make_request(query_url, params=params)[
             "data"]["user"]
+
+        logging.info(f'User {url} highlights.')
 
         highlights = OrderedDict()
         for hl in highlights_data["edge_highlight_reels"]["edges"]:
@@ -262,7 +273,7 @@ class InstaCrawler:
                 "shortcode": None,
             }
 
-        logging.info(f'user {url} highlights. Count: {len(highlights)}')
+        logging.info(f'Highlights count: {len(highlights)}')
 
         return highlights
 
@@ -273,7 +284,6 @@ class InstaCrawler:
 
         :param url: link to a profile (https://www.instagram.com/username/).
         """
-        logging.info(msg='Enter...')
 
         query_url = f"{self.BASE_URL}{self.GRAPHQL_QUERY}"
         posts = OrderedDict()
@@ -340,7 +350,6 @@ class InstaCrawler:
 
         :param url: link to a profile (https://www.instagram.com/username/).
         """
-        logging.info(msg='Enter...')
 
         user_data = self.get_user_info(url=url)
         self._can_parse_profile(user_data=user_data)
@@ -349,6 +358,7 @@ class InstaCrawler:
         igtvs = OrderedDict()
         after = ""
 
+        logging.info(msg=f'User {url} igtvs.')
         while True:
             params = {
                 "query_hash": self.user_igtvs_query_hash,
@@ -384,8 +394,7 @@ class InstaCrawler:
             if igtv_data["page_info"]["has_next_page"]:
                 after = igtv_data["page_info"]["end_cursor"]
             else:
-                logging.info(
-                    msg=f'User {url} igtvs. Count: {len(igtvs)}')
+                logging.info(f'IGTVs count: {len(igtvs)}')
                 break
 
         return igtvs
@@ -397,7 +406,6 @@ class InstaCrawler:
 
         :param url: link to a profile (https://www.instagram.com/username/).
         """
-        logging.info('Enter...')
 
         if url:
             user_data = self.get_user_info(url=url)
@@ -456,8 +464,7 @@ class InstaCrawler:
                 stories[storie["id"]]["post_content"] = [
                     storie["video_versions"][0]["url"]
                 ]
-        logging.info(
-            msg=f'User {url} stories. Coount: {len(stories)}')
+        logging.info(msg=f'User {url} stories. Count: {len(stories)}')
 
         return stories
 
@@ -467,7 +474,6 @@ class InstaCrawler:
 
         :param url: link to a profile (https://www.instagram.com/username/).
         """
-        logging.info(msg='Enter...')
 
         user_data = self.get_user_info(url=url)
         self._can_parse_profile(user_data=user_data)
@@ -524,7 +530,6 @@ class InstaCrawler:
 
         :param url: link to a profile (https://www.instagram.com/username/).
         """
-        logging.info(msg='Enter...')
 
         user_data = self.get_user_info(url=url)
         self._can_parse_profile(user_data=user_data)
