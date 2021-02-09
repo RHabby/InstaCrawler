@@ -12,7 +12,7 @@ class BlockedByInstagramError(Exception):
         self,
         message="""The request returns a non-JSON response.
 There are some reasons of that:
-1) Instagram blocked access to your page; 
+1) Instagram blocked access to your page;
 2) Your cookie string is expired. Try to visit cookie user`s profile
 and check this out."""
     ):
