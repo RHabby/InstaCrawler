@@ -9,6 +9,7 @@ from app.insta_crawler.exceptions import (BlockedByInstagramError,
                                           PrivateProfileError)
 from app.insta_crawler.utils import how_sleep
 from fake_useragent import UserAgent
+import logging
 
 
 class InstaCrawler:
@@ -36,6 +37,7 @@ class InstaCrawler:
             raise NoCookieError
         else:
             self.cookie = cookie
+
         self.all_posts_query_hash = "003056d32c2554def87228bc3fd9668a"
         self.user_reels_query_hash = "d4d88dc1500312af6f937f7b804c68c3"
         self.user_igtvs_query_hash = "bc78b344a68ed16dd5d7f264681c4c76"
@@ -43,6 +45,11 @@ class InstaCrawler:
         self.followers_query_hash = "c76146de99bb02f6415203be841dd25a"
         self.followed_by_user_query_hash = "d04b0a864b4b54837c0d870b0e77e076"
         self.x_ig_app_id = "936619743392459"
+
+        logging.basicConfig(filename="insta_crawler.log",
+                            format="%(asctime)s: %(name)s: %(levelname)s: %(funcName)s: %(lineno)s: %(message)s",
+                            level=logging.INFO)
+        logging.info(f"Class initialised with cookie: '{self.cookie}'")
 
     def _make_request(self, url: str,
                       params: Dict[str, str],
@@ -79,18 +86,19 @@ class InstaCrawler:
                 # the original url and the redirected url are equal
                 if original_url == data.url:
                     # if they are equal but the response is empty
+                    logging.error("NotFoundError")
                     raise NotFoundError
                 else:
                     user_data = self.get_user_info(url=data.url)
                     self._can_parse_profile(user_data=user_data)
-        except JSONDecodeError:
+        except JSONDecodeError as e:
+            logging.error(f"BlockedByInstagramError. Cause: {repr(e)}")
             raise BlockedByInstagramError
 
     def get_cookie_user(self) -> Dict:
         """
         Gives an information about cookie-user.
         """
-
         query_url = f"{self.BASE_URL}{self.GRAPHQL_QUERY}"
         params = {
             "query_hash": self.cookie_user_timeline_hash,
@@ -101,6 +109,7 @@ class InstaCrawler:
         user_url = f"{self.BASE_URL}{cookie_user_username}/"
         cookie_user_info = self.get_user_info(url=user_url)
 
+        logging.info(msg=f"cookie user: {user_url}")
         return cookie_user_info
 
     def get_user_info(self, url: str) -> Dict:
@@ -109,6 +118,7 @@ class InstaCrawler:
 
         :param url: link to a profile (https://www.instagram.com/username/).
         """
+        logging.info(msg="Enter...")
 
         params = {"__a": 1}
         user_data = self._make_request(url, params)["graphql"]
@@ -150,7 +160,7 @@ class InstaCrawler:
             "followed_by_viewer": user_data.get("followed_by_viewer"),
             "user_url": url,
         }
-
+        logging.info(msg=f'user: {user_info["user_url"]}')
         return user_info
 
     def get_single_post(self, url: str) -> Dict:
@@ -160,6 +170,7 @@ class InstaCrawler:
         :param url: link to the post or igtv
         (https://www.instagram.com/[p OR tv]/shortcode/).
         """
+        logging.info(msg="Enter...")
 
         params = {"__a": "1"}
 
@@ -192,6 +203,7 @@ class InstaCrawler:
                 post_data["taken_at_timestamp"]).strftime("%H:%M %d-%m-%Y"),
             "shortcode": post_data["shortcode"]
         }
+        logging.info(msg=f'single post: {post_info["post_link"]}')
 
         return post_info
 
@@ -202,6 +214,7 @@ class InstaCrawler:
 
         :param url: link to a profile (https://www.instagram.com/username/).
         """
+        logging.info(msg=f'Enter...')
 
         user_data = self.get_user_info(url=url)
         self._can_parse_profile(user_data=user_data)
@@ -249,6 +262,8 @@ class InstaCrawler:
                 "shortcode": None,
             }
 
+        logging.info(f'user {url} highlights. Count: {len(highlights)}')
+
         return highlights
 
     def get_posts(self, url: str) -> OrderedDict:
@@ -258,6 +273,7 @@ class InstaCrawler:
 
         :param url: link to a profile (https://www.instagram.com/username/).
         """
+        logging.info(msg='Enter...')
 
         query_url = f"{self.BASE_URL}{self.GRAPHQL_QUERY}"
         posts = OrderedDict()
@@ -311,6 +327,8 @@ class InstaCrawler:
             if posts_data["page_info"]["has_next_page"]:
                 after = posts_data["page_info"]["end_cursor"]
             else:
+                logging.info(
+                    msg=f'User {url} posts. Count: {len(posts)}')
                 break
 
         return posts
@@ -322,6 +340,7 @@ class InstaCrawler:
 
         :param url: link to a profile (https://www.instagram.com/username/).
         """
+        logging.info(msg='Enter...')
 
         user_data = self.get_user_info(url=url)
         self._can_parse_profile(user_data=user_data)
@@ -365,6 +384,8 @@ class InstaCrawler:
             if igtv_data["page_info"]["has_next_page"]:
                 after = igtv_data["page_info"]["end_cursor"]
             else:
+                logging.info(
+                    msg=f'User {url} igtvs. Count: {len(igtvs)}')
                 break
 
         return igtvs
@@ -376,6 +397,7 @@ class InstaCrawler:
 
         :param url: link to a profile (https://www.instagram.com/username/).
         """
+        logging.info('Enter...')
 
         if url:
             user_data = self.get_user_info(url=url)
@@ -434,6 +456,8 @@ class InstaCrawler:
                 stories[storie["id"]]["post_content"] = [
                     storie["video_versions"][0]["url"]
                 ]
+        logging.info(
+            msg=f'User {url} stories. Coount: {len(stories)}')
 
         return stories
 
@@ -443,6 +467,7 @@ class InstaCrawler:
 
         :param url: link to a profile (https://www.instagram.com/username/).
         """
+        logging.info(msg='Enter...')
 
         user_data = self.get_user_info(url=url)
         self._can_parse_profile(user_data=user_data)
@@ -486,6 +511,9 @@ class InstaCrawler:
             user_followers["followers"][username] = follower_info
             how_sleep(data_len=len(user_followers["followers"]))
 
+        logging.info(
+            msg=f'User {url} followers. Count: {len(user_followers["followers"])}')
+
         return user_followers
 
     # almost 17 minutes for 800 items
@@ -496,6 +524,7 @@ class InstaCrawler:
 
         :param url: link to a profile (https://www.instagram.com/username/).
         """
+        logging.info(msg='Enter...')
 
         user_data = self.get_user_info(url=url)
         self._can_parse_profile(user_data=user_data)
@@ -536,6 +565,8 @@ class InstaCrawler:
             user_follow["followed"][username] = info
             how_sleep(data_len=len(user_follow["followed"]))
 
+        logging.info(
+            msg=f'Followed by user {url}. Count: {len(user_follow["followed"])}')
         return user_follow
 
     def _cookie_to_json(self) -> Dict:
@@ -570,4 +601,5 @@ class InstaCrawler:
             followed_by_viewer = user_data["followed_by_viewer"]
 
             if is_private and not followed_by_viewer:
+                logging.error("PrivateProfileError")
                 raise PrivateProfileError
