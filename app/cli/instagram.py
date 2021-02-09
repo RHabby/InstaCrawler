@@ -1,3 +1,5 @@
+import logging
+
 import app.config as config
 import click
 from app.insta_crawler import exceptions as exc
@@ -6,6 +8,10 @@ from app.insta_crawler.utils import (download_all, download_file,
                                      export_as_csv, export_as_json,
                                      print_single_post_info_table,
                                      print_user_info_table)
+
+logging.basicConfig(filename="cli_isntagram.log",
+                    format="%(asctime)s: %(name)s: %(levelname)s: %(funcName)s: %(lineno)s: %(message)s",
+                    level=logging.INFO)
 
 
 @click.group()
@@ -18,6 +24,7 @@ def get_insta():
     click.echo("\nStarting...")
     click.echo("OK, I am collecting some information...")
     click.echo("-" * 80)
+    logging.info("Start")
 
 
 @get_insta.command("cookie-user", short_help="cookie user info")
@@ -37,6 +44,7 @@ def cookie_user(cookie: str):
     try:
         cookie_user = inst.get_cookie_user()
     except exc.BlockedByInstagramError as e:
+        logging.error(f'Error: {repr(e)}')
         click.echo(e)
     else:
         click.echo("There it is:")
@@ -59,15 +67,18 @@ def user_info(cookie: str, username: str):
     --cookie="ig_did=XXXXXXXX-YYYY-CCCC-AAAA-ZZZZZZZZZZZZ; sessionid=1111111111111111111111111;"
     """
 
-    inst = InstaCrawler(cookie=cookie)
     USER_URL = "https://www.instagram.com/{username}/"
+
+    inst = InstaCrawler(cookie=cookie)
 
     try:
         user_info = inst.get_user_info(url=USER_URL.format(username=username))
     except exc.BlockedByInstagramError as e:
         click.echo(e)
+        logging.error(f'Error: {repr(e)}')
     except exc.NotFoundError as e:
         click.echo(e)
+        logging.error(f'Error: {repr(e)}')
     else:
         click.echo("There it is:")
         print_user_info_table(user_info=user_info)
@@ -94,10 +105,13 @@ def post(cookie: str, url: str):
         links = inst.get_single_post(url=url)
     except exc.BlockedByInstagramError as e:
         click.echo(e)
+        logging.error(f'Error: {repr(e)}')
     except exc.NotFoundError as e:
         click.echo(e)
+        logging.error(f'Error: {repr(e)}')
     except exc.PrivateProfileError as e:
         click.echo(e)
+        logging.error(f'Error: {repr(e)}')
     else:
         click.echo("There it is:")
         print_single_post_info_table(post_info=links)
@@ -109,7 +123,8 @@ def post(cookie: str, url: str):
 
                 download_file(url=link, content_type="posts",
                               username=links["owner_username"], name=name)
-
+                logging.info(
+                    f'Downloded file: {link}, owner: {links["owner_username"]}, name: {name}')
         click.echo("\nAll done")
 
 
@@ -158,25 +173,33 @@ def category(cookie: str, username: str, content_type: str):
             }
     except exc.BlockedByInstagramError as e:
         click.echo(e)
+        logging.error(f'Error: {repr(e)}')
     except exc.NotFoundError as e:
         click.echo(e)
+        logging.error(f'Error: {repr(e)}')
     except exc.PrivateProfileError as e:
         click.echo(e)
+        logging.error(f'Error: {repr(e)}')
     else:
         if sum([len(value) for value in data.values()]) == 0:
             click.echo("It looks like there is nothing to download.")
+            logging.info('Empty profile. Nothing to download')
         else:
             click.echo("All data has been collected")
             click.echo("-" * 80)
             if click.confirm("Would you like to save the page content as JSON?"):
                 export_as_json(data=data, username=username,
                                content_type="content")
+                logging.info(
+                    f'Exporting as JSON. Username: {username}, content-type: {"content"}')
             click.echo("-" * 80)
 
             if click.confirm("Would you like to save the page content as CSV?"):
                 export_as_csv(data=data,
                               headers_row=config.category_headers_row,
                               username=username, content_type="content")
+                logging.info(
+                    f'Exporting as CSV. Username: {username}, content-type: {"content"}')
             click.echo("-" * 80)
 
             if click.confirm("Would you like to download the page content?",
@@ -187,6 +210,7 @@ def category(cookie: str, username: str, content_type: str):
                         download_all(posts=value,
                                      content_type=ct,
                                      username=username)
+                        logging.info(f'Downloading {ct}. Username: {username}')
                         click.echo("-" * 80)
                     else:
                         continue
@@ -217,10 +241,13 @@ def followers(cookie: str, username: str):
         followers = insta.get_followers(url=USER_URL)
     except exc.BlockedByInstagramError as e:
         click.echo(e)
+        logging.error(f'Error: {repr(e)}')
     except exc.NotFoundError as e:
         click.echo(e)
+        logging.error(f'Error: {repr(e)}')
     except exc.PrivateProfileError as e:
         click.echo(e)
+        logging.error(f'Error: {repr(e)}')
     else:
         click.echo("All data has been collected")
         click.echo("-" * 80)
@@ -228,6 +255,8 @@ def followers(cookie: str, username: str):
                 "Would you like to download info about the pages that follow the user as JSON?"):
             export_as_json(data=followers, username=username,
                            content_type="followers")
+            logging.info(
+                f'Exporting as JSON. Username: {username}, content-type: {"content"}')
         click.echo("-" * 80)
 
         if click.confirm(
@@ -235,6 +264,8 @@ def followers(cookie: str, username: str):
             export_as_csv(data=followers, username=username,
                           content_type="followers",
                           headers_row=config.followers_headers_row)
+            logging.info(
+                f'Exporting as CSV. Username: {username}, content-type: {"content"}')
 
         click.echo("-" * 80)
         click.echo("All done!")
@@ -264,10 +295,13 @@ def followed_by_user(cookie: str, username: str):
         user_follow = insta.get_followed_by_user(url=USER_URL)
     except exc.BlockedByInstagramError as e:
         click.echo(e)
+        logging.error(f'Error: {repr(e)}')
     except exc.NotFoundError as e:
         click.echo(e)
+        logging.error(f'Error: {repr(e)}')
     except exc.PrivateProfileError as e:
         click.echo(e)
+        logging.error(f'Error: {repr(e)}')
     else:
         click.echo("All data has been collected")
         click.echo("-" * 80)
@@ -276,6 +310,8 @@ def followed_by_user(cookie: str, username: str):
                 "Would you like to download info about the pages followed by user as JSON?"):
             export_as_json(data=user_follow, username=username,
                            content_type="followed_by")
+            logging.info(
+                f'Exporting as JSON. Username: {username}, content-type: {"content"}')
         click.echo("-" * 80)
 
         if click.confirm(
@@ -283,6 +319,8 @@ def followed_by_user(cookie: str, username: str):
             export_as_csv(data=user_follow, username=username,
                           content_type="followed_by",
                           headers_row=config.followers_headers_row)
+            logging.info(
+                f'Exporting as CSV. Username: {username}, content-type: {"content"}')
 
         click.echo("-" * 80)
         click.echo("All done!")
