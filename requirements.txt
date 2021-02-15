@@ -1,0 +1,8 @@
+click==7.1.2
+fake-useragent==0.1.11
+prettytable==2.0.0
+pytest==6.2.2
+python-dotenv==0.15.0
+requests==2.25.1
+toml==0.10.2
+tqdm==4.56.0
