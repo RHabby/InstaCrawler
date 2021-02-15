@@ -5,10 +5,19 @@ from json.decoder import JSONDecodeError
 from typing import Dict, Union
 
 import requests
-from app.insta_crawler.exceptions import (BlockedByInstagramError,
-                                          NoCookieError, NotFoundError,
-                                          PrivateProfileError)
-from app.insta_crawler.utils import how_sleep
+
+try:
+    from app.insta_crawler.exceptions import (BlockedByInstagramError,
+                                              NoCookieError, NotFoundError,
+                                              PrivateProfileError)
+    from app.insta_crawler.utils import how_sleep
+except Exception:
+    # in case if the script is running not from InstaCrawler directory
+    from InstaCrawler.app.insta_crawler.exceptions import (BlockedByInstagramError,
+                                                           NoCookieError, NotFoundError,
+                                                           PrivateProfileError)
+    from InstaCrawler.app.insta_crawler.utils import how_sleep
+
 from fake_useragent import UserAgent
 
 
