@@ -2,7 +2,7 @@ import logging
 from collections import OrderedDict
 from datetime import datetime as dt
 from json.decoder import JSONDecodeError
-from typing import Dict, Union
+from typing import Dict, List, Union
 
 import requests
 
@@ -51,7 +51,6 @@ class InstaCrawler:
             raise NoCookieError
         else:
             self.cookie = cookie
-
         self.user_info = None
 
         logging.basicConfig(filename="insta_crawler.log",
@@ -139,14 +138,19 @@ class InstaCrawler:
                 "shortcode_media")["owner"]
 
             if user_data.get("edge_owner_to_timeline_media"):
-                last_12_posts_shortcodes = [
-                    post["node"]["shortcode"] for post in user_data[
-                        "edge_owner_to_timeline_media"]["edges"]
+                last_twelve_posts = [
+                    {
+                        "post_link": f'{self.BASE_URL}{"tv/" if post["node"].get("product_type") == "igtv" else "p/"}{post["node"]["shortcode"]}/',
+                        "shortcode": post["node"]["shortcode"],
+                        "description": post["node"]["edge_media_to_caption"]["edges"][0]["node"]["text"],
+                        "likes": post["node"]["edge_media_preview_like"]["count"],
+                        "comments": post["node"]["edge_media_to_comment"]["count"],
+                        "post_content": self._collect_post_content(post=post["node"]),
+                    } for post in user_data["edge_owner_to_timeline_media"]["edges"]
                 ]
-
                 posts_count = user_data["edge_owner_to_timeline_media"]["count"]
             else:
-                last_12_posts_shortcodes = None
+                last_twelve_posts = None
                 posts_count = None
 
             self.user_info = {
@@ -170,7 +174,7 @@ class InstaCrawler:
                     "count"
                 ) if user_data.get("edge_felix_video_timeline") else None,
                 "posts_count": posts_count,
-                "last_12_posts_shortcodes": last_12_posts_shortcodes,
+                "last_twelve_posts": last_twelve_posts,
                 "profile_pic_hd": user_data.get("profile_pic_url_hd"),
                 "followed_by_viewer": user_data.get("followed_by_viewer"),
                 "user_url": url,
@@ -190,25 +194,13 @@ class InstaCrawler:
         params = {"__a": "1"}
         post_data = self._make_request(url, params)[
             "graphql"]["shortcode_media"]
-
-        if post_data.get("edge_sidecar_to_children"):
-            post_content = [
-                (elem["node"]
-                 .get("video_url") or elem["node"]
-                 .get("display_url"))
-                for elem in post_data["edge_sidecar_to_children"]["edges"]
-            ]
-        elif post_data.get("product_type") == "igtv":
-            post_content = [post_data.get("video_url")]
-        else:
-            post_content = [post_data.get(
-                "video_url") or post_data.get("display_url")]
+        post_content = self._collect_post_content(post=post_data)
 
         post_info = {
             "description": post_data["edge_media_to_caption"]["edges"][0]["node"]["text"],
             "likes": post_data["edge_media_preview_like"]["count"],
             "comments": post_data["edge_media_preview_comment"]["count"],
-            "owner_link": f"{self.BASE_URL}{post_data['owner']['username']}",
+            "owner_link": f"{self.BASE_URL}{post_data['owner']['username']}/",
             "owner_username": post_data['owner']['username'],
             "post_content": post_content,
             "post_content_len": len(post_content),
@@ -578,6 +570,22 @@ class InstaCrawler:
             msg=f'Followed by user {url}. Count: {len(user_follow["followed"])}')
         return user_follow
 
+    def _collect_post_content(post: Dict) -> List:
+        if post.get("edge_sidecar_to_children"):
+            post_content = [
+                (elem["node"]
+                 .get("video_url") or elem["node"]
+                 .get("display_url"))
+                for elem in post["edge_sidecar_to_children"]["edges"]
+            ]
+        elif post.get("product_type") == "igtv":
+            post_content = [post.get("video_url")]
+        else:
+            post_content = [post.get(
+                "video_url") or post.get("display_url")]
+
+        return post_content
+
     def _cookie_to_json(self) -> Dict:
         """
         Converts a cookie-string to a dictionary.
@@ -594,7 +602,7 @@ class InstaCrawler:
 
         return cookie_dict
 
-    def _can_parse_profile(self, user_data: Dict):
+    def _can_parse_profile(user_data: Dict):
         """
         Check can or cannot parse a user's profile,
         depending on account privacy and is the viewer
