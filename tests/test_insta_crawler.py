@@ -42,10 +42,10 @@ def test_get_cookie_user(insta_instance):
     assert cookie_user["user_url"] == f'{insta_instance[0].BASE_URL}{cookie_user["username"]}/'
 
     if cookie_user["posts_count"] <= 12:
-        assert len(cookie_user["last_12_posts_shortcodes"]) == int(
+        assert len(cookie_user["last_twelve_posts"]) == int(
             cookie_user["posts_count"])
     else:
-        assert len(cookie_user["last_12_posts_shortcodes"]) == 12
+        assert len(cookie_user["last_twelve_posts"]) == 12
 
 
 @pytest.mark.success
@@ -55,16 +55,16 @@ def test_get_user_info(insta_instance):
     assert user_info["username"] in user_info["user_url"]
 
     if user_info["posts_count"] <= 12:
-        assert len(user_info["last_12_posts_shortcodes"]) == int(
+        assert len(user_info["last_twelve_posts"]) == int(
             user_info["posts_count"])
     else:
-        assert len(user_info["last_12_posts_shortcodes"]) == 12
+        assert len(user_info["last_twelve_posts"]) == 12
 
 
 @pytest.mark.success
 def test_get_single_post(insta_instance):
-    for shortcode in insta_instance[1]["last_12_posts_shortcodes"][:5]:
-        url = f"{tc.InstaConstants.base_url}p/{shortcode}/"
+    for post in insta_instance[1]["last_twelve_posts"][:5]:
+        url = f'{tc.InstaConstants.base_url}p/{post["shortcode"]}/'
         single_post = insta_instance[0].get_single_post(url=url)
 
         assert isinstance(single_post, Dict)
