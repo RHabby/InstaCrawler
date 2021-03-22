@@ -7,17 +7,10 @@ from fake_useragent import UserAgent
 
 import requests
 
-try:
-    from app.insta_crawler.exceptions import (BlockedByInstagramError,
-                                              NoCookieError, NotFoundError,
-                                              PrivateProfileError)
-    from app.insta_crawler.utils import how_sleep
-except Exception:
-    # in case if the script is run not from InstaCrawler directory
-    from InstaCrawler.app.insta_crawler.exceptions import (BlockedByInstagramError,
-                                                           NoCookieError, NotFoundError,
-                                                           PrivateProfileError)
-    from InstaCrawler.app.insta_crawler.utils import how_sleep
+from .exceptions import (BlockedByInstagramError,
+                         NoCookieError, NotFoundError,
+                         PrivateProfileError)
+from .utils import how_sleep
 
 
 class InstaCrawler:
