@@ -14,7 +14,7 @@ COOKIE = os.environ.get("COOKIE") or None
 # or the account whose cookies you are using must be following them.
 SUCCESS_TEST_LINKS = [
     os.environ.get("SUCCESS_TEST_LINK_01"),
-    os.environ.get("SUCCESS_TEST_LINK_02")
+    os.environ.get("SUCCESS_TEST_LINK_02"),
 ]
 
 # getting the "followers" list or "followed by user" list

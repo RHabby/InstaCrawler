@@ -1,13 +1,15 @@
 import logging
 
-import app.config as config
-import click
+
+from app import config
 from app.insta_crawler import exceptions as exc
 from app.insta_crawler.insta import InstaCrawler
 from app.insta_crawler.utils import (download_all, download_file,
                                      export_as_csv, export_as_json,
                                      print_single_post_info_table,
                                      print_user_info_table)
+
+import click
 
 logging.basicConfig(filename="cli_isntagram.log",
                     format="%(asctime)s: %(name)s: %(levelname)s: %(funcName)s: %(lineno)s: %(message)s",
@@ -67,12 +69,12 @@ def user_info(cookie: str, username: str):
     --cookie="ig_did=XXXXXXXX-YYYY-CCCC-AAAA-ZZZZZZZZZZZZ; sessionid=1111111111111111111111111;"
     """
 
-    USER_URL = "https://www.instagram.com/{username}/"
+    user_url = "https://www.instagram.com/{username}/"
 
     inst = InstaCrawler(cookie=cookie)
 
     try:
-        user_info = inst.get_user_info(url=USER_URL.format(username=username))
+        user_info = inst.get_user_info(url=user_url.format(username=username))
     except exc.BlockedByInstagramError as e:
         click.echo(e)
         logging.error(f'Error: {repr(e)}')
@@ -119,7 +121,8 @@ def post(cookie: str, url: str):
         if click.confirm("\nWould you like to download the post content?",
                          abort=True):
             for index, link in enumerate(links["post_content"]):
-                name = f"{links['owner_username']}_{links['shortcode']}_{index + 1}{'.mp4' if '.mp4' in link else '.png'}"
+                name = (f"{links['owner_username']}_{links['shortcode']}_{index + 1}"
+                        f"{'.mp4' if '.mp4' in link else '.png'}")
 
                 download_file(url=link, content_type="posts",
                               username=links["owner_username"], name=name)
@@ -151,25 +154,25 @@ def category(cookie: str, username: str, content_type: str):
     --cookie="ig_did=XXXXXXXX-YYYY-CCCC-AAAA-ZZZZZZZZZZZZ; sessionid=1111111111111111111111111;"
     """
 
-    USER_URL = f"https://www.instagram.com/{username}"
+    user_url = f"https://www.instagram.com/{username}"
     insta = InstaCrawler(cookie=cookie)
 
     data = {}
     try:
         if content_type == "posts":
-            data[content_type] = insta.get_posts(url=USER_URL)
-        if content_type == "stories":
-            data[content_type] = insta.get_stories(url=USER_URL)
-        if content_type == "reels":
-            data[content_type] = insta.get_highlights(url=USER_URL)
-        if content_type == "igtv":
-            data[content_type] = insta.get_all_igtv(url=USER_URL)
-        if content_type == "all":
+            data[content_type] = insta.get_posts(url=user_url)
+        elif content_type == "stories":
+            data[content_type] = insta.get_stories(url=user_url)
+        elif content_type == "reels":
+            data[content_type] = insta.get_highlights(url=user_url)
+        elif content_type == "igtv":
+            data[content_type] = insta.get_all_igtv(url=user_url)
+        elif content_type == "all":
             data = {
-                "posts": insta.get_posts(url=USER_URL),
-                "stories": insta.get_stories(url=USER_URL),
-                "highlights": insta.get_highlights(url=USER_URL),
-                "igtv": insta.get_all_igtv(url=USER_URL)
+                "posts": insta.get_posts(url=user_url),
+                "stories": insta.get_stories(url=user_url),
+                "highlights": insta.get_highlights(url=user_url),
+                "igtv": insta.get_all_igtv(url=user_url),
             }
     except exc.BlockedByInstagramError as e:
         click.echo(e)
@@ -234,11 +237,11 @@ def followers(cookie: str, username: str):
     --cookie="ig_did=XXXXXXXX-YYYY-CCCC-AAAA-ZZZZZZZZZZZZ; sessionid=1111111111111111111111111;"
     """
 
-    USER_URL = f"https://www.instagram.com/{username}"
+    user_url = f"https://www.instagram.com/{username}"
 
     insta = InstaCrawler(cookie=cookie)
     try:
-        followers = insta.get_followers(url=USER_URL)
+        followers = insta.get_followers(url=user_url)
     except exc.BlockedByInstagramError as e:
         click.echo(e)
         logging.error(f'Error: {repr(e)}')
@@ -288,11 +291,11 @@ def followed_by_user(cookie: str, username: str):
     --cookie="ig_did=XXXXXXXX-YYYY-CCCC-AAAA-ZZZZZZZZZZZZ; sessionid=1111111111111111111111111;"
     """
 
-    USER_URL = f"https://www.instagram.com/{username}"
+    user_url = f"https://www.instagram.com/{username}"
 
     insta = InstaCrawler(cookie=cookie)
     try:
-        user_follow = insta.get_followed_by_user(url=USER_URL)
+        user_follow = insta.get_followed_by_user(url=user_url)
     except exc.BlockedByInstagramError as e:
         click.echo(e)
         logging.error(f'Error: {repr(e)}')

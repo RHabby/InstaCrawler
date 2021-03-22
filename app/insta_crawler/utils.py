@@ -4,8 +4,10 @@ import os
 from time import sleep
 from typing import Dict, List, OrderedDict
 
-import requests
 from prettytable import PrettyTable
+
+import requests
+
 from tqdm import tqdm
 
 
@@ -21,7 +23,7 @@ def export_as_json(data: Dict, username: str, content_type: str):
             dict(OrderedDict(data)),
             file,
             ensure_ascii=False,
-            indent=4
+            indent=4,
         )
 
 
@@ -37,7 +39,7 @@ def export_as_csv(data: Dict, headers_row: List,
         writer = csv.writer(file, delimiter=",")
         writer.writerow(headers_row)
 
-        for content_type, info in data.items():
+        for info in data.items():
             if isinstance(info, dict):
                 for value in info.values():
                     row = [value[header] for header in headers_row]
@@ -73,11 +75,12 @@ def download_all(posts: OrderedDict[str, Dict],
     undone = []
     total_links = sum([len(post["post_content"]) for post in posts.values()])
 
-    with tqdm(total=total_links, ) as pbar:
+    with tqdm(total=total_links) as pbar:
         for addr, post in posts.items():
             links = post["post_content"]
             for index, link in enumerate(links):
-                name = fr"{username}_{content_type}_{addr.replace('/', '_')}_0{index+1}{'.mp4' if 'mp4' in link else '.png'}"
+                name = (fr"{username}_{content_type}_{addr.replace('/', '_')}_0{index+1}"
+                        fr"{'.mp4' if 'mp4' in link else '.png'}")
                 try:
                     download_file(
                         url=link,
@@ -95,7 +98,7 @@ def download_all(posts: OrderedDict[str, Dict],
                             "content_type": content_type,
                             "link": link,
                             "name": name,
-                        }
+                        },
                     )
 
         for item in undone:

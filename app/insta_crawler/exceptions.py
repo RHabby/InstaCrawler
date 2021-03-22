@@ -1,7 +1,7 @@
 class PrivateProfileError(Exception):
     def __init__(
         self,
-        message="The answer is empty. This profile is private. You must first follow it."
+        message="The answer is empty. This profile is private. You must first follow it.",
     ):
         self.message = message
         super().__init__(self.message)
@@ -10,11 +10,11 @@ class PrivateProfileError(Exception):
 class BlockedByInstagramError(Exception):
     def __init__(
         self,
-        message="""The request returns a non-JSON response.
-There are some reasons of that:
-1) Instagram blocked access to your page;
-2) Your cookie string is expired. Try to visit cookie user`s profile
-and check this out."""
+        message=("The request returns a non-JSON response.\n"
+                 "There are some reasons of that:\n"
+                 "1) Instagram blocked access to your page;\n"
+                 "2) Your cookie string is expired. Try to visit cookie user`s profile\n"
+                 "and check this out."),
     ):
         self.message = message
         super().__init__(self.message)
@@ -23,7 +23,7 @@ and check this out."""
 class NoCookieError(Exception):
     def __init__(
         self,
-        message="There is no cookie. Use your cookie."
+        message="There is no cookie. Use your cookie.",
     ):
         self.message = message
         super().__init__(self.message)
@@ -32,7 +32,7 @@ class NoCookieError(Exception):
 class NotFoundError(Exception):
     def __init__(
         self,
-        message="Not found."
+        message="Not found.",
     ):
         self.message = message
         super().__init__(self.message)

@@ -1,8 +1,10 @@
-from app.insta_crawler.exceptions import PrivateProfileError
-from typing import Dict, OrderedDict, List
+from typing import Dict, List, OrderedDict
 
 import pytest
+
 from app.insta_crawler import insta as i
+from app.insta_crawler.exceptions import PrivateProfileError
+
 import tests.tests_config as tc
 
 
@@ -63,7 +65,7 @@ def test_get_user_info(insta_instance):
 
 @pytest.mark.success
 def test_get_single_post(insta_instance):
-    for post in insta_instance[1]["last_twelve_posts"][:5]:
+    for post in insta_instance[1]["last_twelve_posts"][:10]:
         url = f'{tc.InstaConstants.base_url}p/{post["shortcode"]}/'
         single_post = insta_instance[0].get_single_post(url=url)
 
