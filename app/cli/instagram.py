@@ -1,13 +1,13 @@
 import logging
 
 
-from app import config
-from app.insta_crawler import exceptions as exc
-from app.insta_crawler.insta import InstaCrawler
-from app.insta_crawler.utils import (download_all, download_file,
-                                     export_as_csv, export_as_json,
-                                     print_single_post_info_table,
-                                     print_user_info_table)
+from .. import config
+from ..insta_crawler import exceptions as exc
+from ..insta_crawler.insta import InstaCrawler
+from ..insta_crawler.utils import (download_all, download_file,
+                                   export_as_csv, export_as_json,
+                                   print_single_post_info_table,
+                                   print_user_info_table)
 
 import click
 
