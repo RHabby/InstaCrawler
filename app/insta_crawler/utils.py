@@ -5,9 +5,7 @@ from time import sleep
 from typing import Dict, List, OrderedDict
 
 from prettytable import PrettyTable
-
 import requests
-
 from tqdm import tqdm
 
 
@@ -39,7 +37,7 @@ def export_as_csv(data: Dict, headers_row: List,
         writer = csv.writer(file, delimiter=",")
         writer.writerow(headers_row)
 
-        for info in data.items():
+        for content_type, info in data.items():
             if isinstance(info, dict):
                 for value in info.values():
                     row = [value[header] for header in headers_row]
@@ -163,9 +161,9 @@ def print_single_post_info_table(post_info):
 
 def how_sleep(data_len: int):
     if data_len % 1000 == 0:
-        sleep(8)
+        sleep(10)
     elif data_len % 100 == 0:
-        sleep(3)
+        sleep(5)
     elif data_len % 25 == 0:
         sleep(2)
     else:
