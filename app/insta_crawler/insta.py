@@ -184,7 +184,7 @@ class InstaCrawler:
         query_url = f"{self.BASE_URL}{self.GRAPHQL_QUERY}"
         params = {
             "query_hash": self.user_reels_query_hash,
-            "user_id": str(user_data.user_id),
+            "user_id": user_data.user_id,
             "include_chaining": "true",
             "include_reel": "true",
             "include_suggested_users": "false",
@@ -253,7 +253,7 @@ class InstaCrawler:
                 post = post["node"]
                 description = None
                 if post["edge_media_to_caption"]["edges"]:
-                    post["edge_media_to_caption"]["edges"][0]["node"]["text"]
+                    description = post["edge_media_to_caption"]["edges"][0]["node"]["text"]
 
                 if post.get("edge_sidecar_to_children"):
                     post_links = post["edge_sidecar_to_children"]["edges"]
