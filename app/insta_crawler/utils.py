@@ -2,30 +2,38 @@ import csv
 import json
 import os
 from time import sleep
-from typing import Dict, List, OrderedDict
+from typing import Dict, List
 
 from prettytable import PrettyTable
 import requests
 from tqdm import tqdm
 
 
-def export_as_json(data: Dict, username: str, content_type: str):
+def export_as_json(data: Dict, username: str):
     file_dir = os.path.join(os.getcwd(), "downloads", username)
-    path_to_file = os.path.join(file_dir, f"{username}_{content_type}.json")
+    path_to_file = os.path.join(file_dir, f"{username}_data.json")
 
     if not os.path.exists(file_dir):
         os.makedirs(file_dir)
 
-    with open(path_to_file, "w", encoding="utf-8") as file:
-        json.dump(
-            dict(OrderedDict(data)),
-            file,
-            ensure_ascii=False,
-            indent=4,
-        )
+    data = {key: [dict(item) for item in value] for key, value in data.items()}
+    try:
+        with open(path_to_file, "r", encoding="utf-8") as file:
+            file_data = json.load(file)
+        file_data.update(data)
+    except Exception:
+        file_data = data
+    finally:
+        with open(path_to_file, "w", encoding="utf-8") as file:
+            json.dump(
+                file_data,
+                file,
+                ensure_ascii=False,
+                indent=4,
+            )
 
 
-def export_as_csv(data: Dict, headers_row: List,
+def export_as_csv(data: List, headers_row: List,
                   username: str, content_type: str):
     file_dir = os.path.join(os.getcwd(), "downloads", username)
     path_to_file = os.path.join(file_dir, f"{username}_{content_type}.csv")
@@ -34,51 +42,49 @@ def export_as_csv(data: Dict, headers_row: List,
         os.makedirs(file_dir)
 
     with open(path_to_file, "w", encoding="utf-8", newline="") as file:
-        writer = csv.writer(file, delimiter=",")
+        writer = csv.writer(file, delimiter=";")
         writer.writerow(headers_row)
 
-        for content_type, info in data.items():
-            if isinstance(info, dict):
-                for value in info.values():
-                    row = [value[header] for header in headers_row]
-                    writer.writerow(row)
+        for item in data:
+            item = dict(item)
+            row = [item[header] for header in headers_row]
+            writer.writerow(row)
 
 
 def download_file(url: str, content_type: str,
                   username: str, name: str) -> str:
-    file_dir = os.path.join(os.getcwd(), "downloads", username, content_type)
-    path_to_file = os.path.join(file_dir, name)
 
+    file_dir = os.path.join(os.getcwd(), "downloads", username, content_type)
     if not os.path.exists(file_dir):
         os.makedirs(file_dir)
 
+    path_to_file = os.path.join(file_dir, name)
     if os.path.exists(path_to_file):
         return path_to_file
     else:
-        # NOTE the stream=True parameter below
         chunk_size = 1024
-        chunk_counter = 0
         with requests.get(url, stream=True) as r:
             r.raise_for_status()
-            with open(path_to_file, 'wb') as f:
+            with open(path_to_file, "wb") as f:
                 for chunk in r.iter_content(chunk_size=chunk_size):
-                    if chunk:  # filter out keep-alive new chunks
+                    if chunk:
                         f.write(chunk)
-                        chunk_counter += 1
         return path_to_file
 
 
-def download_all(posts: OrderedDict[str, Dict],
+def download_all(posts: List[Dict],
                  content_type: str, username: str) -> None:
     undone = []
-    total_links = sum([len(post["post_content"]) for post in posts.values()])
-
+    total_links = sum([len(post.post_content) for post in posts])
     with tqdm(total=total_links) as pbar:
-        for addr, post in posts.items():
-            links = post["post_content"]
+        for post in posts:
+            shortcode = post.highlight_id if content_type == "highlights" else post.shortcode
+            links = post.post_content
             for index, link in enumerate(links):
-                name = (fr"{username}_{content_type}_{addr.replace('/', '_')}_0{index+1}"
-                        fr"{'.mp4' if 'mp4' in link else '.png'}")
+                name = (
+                    f"{username}_{content_type}_{shortcode}_0{index+1}"
+                    f"{'.mp4' if 'mp4' in link else '.png'}"
+                )
                 try:
                     download_file(
                         url=link,
@@ -98,7 +104,6 @@ def download_all(posts: OrderedDict[str, Dict],
                             "name": name,
                         },
                     )
-
         for item in undone:
             download_file(
                 username=item["username"],
@@ -109,7 +114,7 @@ def download_all(posts: OrderedDict[str, Dict],
             pbar.update(1)
 
 
-def print_user_info_table(user_info):
+def print_user_info_table(user_info: Dict) -> None:
     table = PrettyTable(padding_width=5)
     table.field_names = ["FIELD NAME", "INFO"]
 
@@ -120,13 +125,13 @@ def print_user_info_table(user_info):
         "Full Name": user_info["full_name"].replace("\t", "-"),
         "Business Category": user_info["business_category_name"],
         "Category": user_info["category_name"],
-        "Followers": user_info["edge_followed_by"],
-        "Follows": user_info["edge_follow"],
+        "Followers": user_info["followed_by"],
+        "Follows": user_info["follow"],
         "Posts": user_info["posts_count"],
         "Reels": user_info["highlight_reel_count"],
         "IGTV": user_info["igtv_count"],
         "Is Private": user_info["is_private"],
-        "ID": user_info["id"],
+        "ID": user_info["user_id"],
         "Ext URL": user_info["external_url"],
         "Followed by Viewer": user_info["followed_by_viewer"],
     }
@@ -138,7 +143,7 @@ def print_user_info_table(user_info):
         title=f"Info about {user_info['username']}`s instagram account"))
 
 
-def print_single_post_info_table(post_info):
+def print_single_post_info_table(post_info: Dict) -> None:
     table = PrettyTable(padding_width=3)
     table.field_names = ["FIELD NAME", "POST INFO"]
     table._max_width = {"POST INFO": 100}
@@ -159,13 +164,13 @@ def print_single_post_info_table(post_info):
         title=f"{post_info['owner_username']}`s instagram post"))
 
 
-def how_sleep(data_len: int):
+def how_sleep(data_len: int) -> None:
     if data_len % 1000 == 0:
-        sleep(10)
+        sleep(11)
     elif data_len % 100 == 0:
-        sleep(5)
+        sleep(7)
     elif data_len % 25 == 0:
-        sleep(2)
+        sleep(4)
     else:
         pass
 
