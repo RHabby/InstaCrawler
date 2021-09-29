@@ -1,3 +1,13 @@
+import os
+
+from dotenv import load_dotenv
+
+basedir = os.path.abspath(os.path.dirname(__file__))
+load_dotenv(dotenv_path=os.path.join(basedir, "..", ".env"))
+
+login = os.environ.get("LOGIN2")
+password = os.environ.get("PASSWORD2")
+
 category_headers_row = ["shortcode", "post_link", "owner_username",
                         "owner_link", "likes", "comments",
                         "description", "title", "posted_at",

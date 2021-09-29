@@ -6,9 +6,8 @@ from dotenv import load_dotenv
 basedir = os.path.abspath(os.path.dirname(__file__))
 load_dotenv(dotenv_path=os.path.join(basedir, "..", ".env"))
 
-# you can paste your cookie here or into the .env file
-# just replace 'None' to your cookie string below
-COOKIE = os.environ.get("COOKIE") or None
+login = os.environ.get("LOGIN2")
+password = os.environ.get("PASSWORD2")
 
 # these profiles must either be public,
 # or the account whose cookies you are using must be following them.
@@ -17,13 +16,31 @@ SUCCESS_TEST_LINKS = [
     os.environ.get("SUCCESS_TEST_LINK_02"),
 ]
 
+SUCCESS_SINGLE_POST_LINKS = [
+    os.environ.get("SUCCESS_SINGLE_POST_LINK_01"),
+    os.environ.get("SUCCESS_SINGLE_POST_LINK_02"),
+    os.environ.get("SUCCESS_SINGLE_POST_LINK_03"),
+]
+
 # getting the "followers" list or "followed by user" list
 # may be very time consuming. For test cases choose some account
 # with a small numbers of "followers" and "following"
-FOLLOWERS_TEST_LINK = os.environ.get("FOLLOWERS_TEST_LINK")
+OPEN_PROFILE_FOLLOWERS_TEST_LINK = [os.environ.get("OPEN_PROFILE_FOLLOWERS_TEST_LINK")]
+PRIVATE_PROFILE_FOLLOWERS_TEST_LINK = [os.environ.get("PRIVATE_PROFILE_FOLLOWERS_TEST_LINK")]
 
 # private and not followed by the account whose cookie you are using
-FAILED_TEST_LINK = os.environ.get("FAILED_TEST_LINK")
+FAILED_TEST_LINK = [os.environ.get("FAILED_TEST_LINK")]
+
+
+PRIVATE_PROFILE_SINGlE_POST_LINKS = [
+    os.environ.get("PRIVATE_PROFILE_SINGlE_POST_LINKS_01"),
+    os.environ.get("PRIVATE_PROFILE_SINGlE_POST_LINKS_02"),
+]
+
+NOT_FOUND_ERROR_LINKS = [
+    os.environ.get("NOT_FOUND_SINGLE_POST_LINK"),
+    os.environ.get("NOT_FOUND_SINGLE_USER_LINK"),
+]
 
 
 @dataclass
