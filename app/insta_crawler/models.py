@@ -54,8 +54,8 @@ class User(BaseModel):
     is_private: bool
     username: str
     igtv_count: int
-    posts_count: Optional[int]
-    last_twelve_posts: Optional[List[Post]] = None
+    posts_count: int = 0
+    last_twelve_posts: Optional[List[Post]]
     profile_pic_hd: str
     followed_by_viewer: bool
     user_url: str
