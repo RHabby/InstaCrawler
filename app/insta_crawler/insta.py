@@ -107,7 +107,7 @@ class InstaCrawler:
 
         return cookie_user_info
 
-    def get_user_info(self, url: str) -> User:
+    def get_user_info(self, url: str, **kwargs) -> User:
         """
         Gives information about the user by link to his profile.
 
@@ -150,7 +150,7 @@ class InstaCrawler:
             followed_by_viewer=user_data.get("followed_by_viewer"),
             user_url=url,
         )
-        if self._can_parse_profile(user):
+        if self._can_parse_profile(user) and kwargs.get("target") is None:
             raise PrivateProfileError()
 
         return user
@@ -417,7 +417,7 @@ class InstaCrawler:
         (https://www.instagram.com/username/).
         """
 
-        user_data = self.get_user_info(url=url)
+        user_data = self.get_user_info(url=url, target="followers")
 
         query_url = f"{self.BASE_URL}{self.GRAPHQL_QUERY}"
         after = ""
@@ -457,7 +457,7 @@ class InstaCrawler:
         (https://www.instagram.com/username/).
         """
 
-        user_data = self.get_user_info(url=url)
+        user_data = self.get_user_info(url=url, target="followed_by_user")
 
         query_url = f"{self.BASE_URL}{self.GRAPHQL_QUERY}"
         after = ""
@@ -494,7 +494,7 @@ class InstaCrawler:
     def _extract_users_by_usernames(self, usernames: List[str], result: List[User]) -> None:
         for username in usernames:
             user_url = f"{self.BASE_URL}{username}/"
-            user_info = self.get_user_info(url=user_url)
+            user_info = self.get_user_info(url=user_url, target="info_extraction")
 
             result.append(user_info)
 
