@@ -9,14 +9,18 @@ import requests
 from tqdm import tqdm
 
 
-def export_as_json(data: Dict, username: str):
+def export_as_json(data: Dict, username: str, prepocessed: bool = False):
     file_dir = os.path.join(os.getcwd(), "downloads", username)
     path_to_file = os.path.join(file_dir, f"{username}_data.json")
 
     if not os.path.exists(file_dir):
         os.makedirs(file_dir)
 
-    data = {key: [dict(item) for item in value] for key, value in data.items()}
+    if not prepocessed:
+        data = {
+            key: [dict(item) for item in value]
+            for key, value in data.items()
+        }
     try:
         with open(path_to_file, "r", encoding="utf-8") as file:
             file_data = json.load(file)
@@ -168,11 +172,32 @@ def how_sleep(data_len: int) -> None:
     if data_len % 1000 == 0:
         sleep(11)
     elif data_len % 100 == 0:
-        sleep(7)
+        sleep(9)
     elif data_len % 25 == 0:
-        sleep(4)
+        sleep(7)
     else:
         pass
+
+
+def get_data_by_content_type(insta, content_type: str, user_url: str) -> Dict:
+    data = {}
+    if content_type == "posts":
+        data[content_type] = insta.get_posts(url=user_url)
+    elif content_type == "stories":
+        data[content_type] = insta.get_stories(url=user_url)
+    elif content_type == "highlights":
+        data[content_type] = insta.get_highlights(url=user_url)
+    elif content_type == "igtv":
+        data[content_type] = insta.get_all_igtv(url=user_url)
+    elif content_type == "all":
+        data = {
+            "posts": insta.get_posts(url=user_url),
+            "stories": insta.get_stories(url=user_url),
+            "highlights": insta.get_highlights(url=user_url),
+            "igtv": insta.get_all_igtv(url=user_url),
+        }
+
+    return data
 
 
 if __name__ == "__main__":
